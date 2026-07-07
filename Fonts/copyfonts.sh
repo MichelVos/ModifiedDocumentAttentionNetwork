@@ -1,0 +1,13 @@
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-BoldItalic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Black.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Regular.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-LightItalic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Italic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-ThinItalic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Bold.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Medium.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-BlackItalic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-MediumItalic.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Thin.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/lato/Lato-Light.ttf ~/dev/python/DAN/Fonts/ttf
+cp ~/share/ou/documents/afstuderen/dev/fonts/ofl/parisienne/Parisienne-Regular.ttf ~/dev/python/DAN/Fonts/ttf
