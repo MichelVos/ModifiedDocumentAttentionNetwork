@@ -138,3 +138,6 @@ The outputs files are split into two subfolders: "checkpoints" and "results". \
 ## License
 
 This whole project is under Cecill-C license.
+
+# ModifiedDocumentAttentionNetwork
+Modifications made to the Document Attention Network for my master's thesis.
