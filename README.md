@@ -1,3 +1,7 @@
+# At the moment, this is still a placeholder with the original code. We will add the modified code soon. 
+
+
+
 # DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition
 This repository is a public implementation of the paper: "DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition".
 
