@@ -78,6 +78,8 @@ class DatasetFormatter:
                 exit(-1)
         for filename in self.map_datasets_files[self.dataset_name][self.level]["arx_files"]:
             filepath = os.path.join(self.source_fold_path, filename)
+            absolute_path = os.path.abspath(filepath)
+            print(absolute_path)
             if not os.path.exists(filepath):
                 print("error - {} not found".format(filepath))
                 exit(-1)
@@ -122,6 +124,9 @@ class OCRDatasetFormatter(DatasetFormatter):
     def __init__(self, source_dataset, level, extra_name="", set_names=["train", "valid", "test"]):
         super(OCRDatasetFormatter, self).__init__(source_dataset, level, extra_name, set_names)
         self.charset = set()
+
+        #print(f"OCRDatasetFormatter: charset length is {len(self.charset)}")
+
         self.gt = dict()
         for set_name in set_names:
             self.gt[set_name] = dict()

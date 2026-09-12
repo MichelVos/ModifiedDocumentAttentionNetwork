@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -32,6 +32,7 @@
 #  The fact that you are presently reading this means that you have had
 #  knowledge of the CeCILL-C license and that you accept its terms.
 
+from pyexpat import model
 import torch
 import os
 import sys
@@ -41,16 +42,33 @@ import torch.distributed as dist
 import torch.multiprocessing as mp
 import random
 import numpy as np
+import glob
+from torch.nn import CTCLoss
 from torch.utils.tensorboard import SummaryWriter
 from torch.nn.init import kaiming_uniform_
 from tqdm import tqdm
 from time import time
 from torch.nn.parallel import DistributedDataParallel as DDP
-from torch.cuda.amp import GradScaler
+from torch.amp import GradScaler
 from basic.metric_manager import MetricManager
 from basic.scheduler import DropoutScheduler
 from datetime import date
+from contextlib import contextmanager
+from basic.Dataset import DocFolder
+import time
+import matplotlib.pyplot as plt
+import torchvision
+import torchvision.utils as vutils
+from basic.models import FCN_Encoder, ResNet18CTC
 
+@contextmanager
+def timer(label="block"):
+    t0 = time.perf_counter()
+    try:
+        yield
+    finally:
+        dt = time.perf_counter() - t0
+        print(f"[{label}] {dt:.6f}s")
 
 class GenericTrainingManager:
 
@@ -63,6 +81,7 @@ class GenericTrainingManager:
         self.begin_time = None
         self.dataset = None
         self.dataset_name = list(self.params["dataset_params"]["datasets"].values())[0] if "datasets" in self.params["dataset_params"] else None
+        self.manual_seed = self.params["training_params"]["manual_seed"] if "manual_seed" in self.params["training_params"] else 1111
         self.paths = None
         self.latest_step = 0
         self.latest_epoch = -1
@@ -91,6 +110,14 @@ class GenericTrainingManager:
         self.init_paths()
         if self.dataset_name is not None:
             self.load_dataset()
+
+        if "line_dataset_params" in self.params["dataset_params"] and self.params["dataset_params"]["line_dataset_params"] is not None:
+            #self.dataset.train_dataset.line_dataset = DocFolder(self.params["dataset_params"]["line_dataset_params"])
+            self.dataset.train_dataset.line_dataset = DocFolder(self.params["dataset_params"])
+        else:
+            self.dataset.train_dataset.line_dataset = None
+
+
         self.params["model_params"]["use_amp"] = self.params["training_params"]["use_amp"]
 
     def init_paths(self):
@@ -103,11 +130,14 @@ class GenericTrainingManager:
         os.makedirs(checkpoints_path, exist_ok=True)
         results_path = os.path.join(output_path, "results")
         os.makedirs(results_path, exist_ok=True)
+        log_path = os.path.join(output_path, "logs")
+        os.makedirs(log_path, exist_ok=True)
 
         self.paths = {
             "results": results_path,
             "checkpoints": checkpoints_path,
-            "output_folder": output_path
+            "output_folder": output_path,
+            "logs": log_path
         }
 
     def load_dataset(self):
@@ -180,6 +210,8 @@ class GenericTrainingManager:
             # make the model compatible with Distributed Data Parallel if used
             if self.params["training_params"]["use_ddp"]:
                 self.models[model_name] = DDP(self.models[model_name], [self.ddp_config["rank"]])
+        #for name, p in self.models["encoder"].named_parameters():
+        #    print(name, p.mean().item(), p.std().item())
 
         # Handle curriculum dropout
         if "dropout_scheduler" in self.params["model_params"]:
@@ -187,7 +219,7 @@ class GenericTrainingManager:
             T = self.params["model_params"]["dropout_scheduler"]["T"]
             self.dropout_scheduler = DropoutScheduler(self.models, func, T)
 
-        self.scaler = GradScaler(enabled=self.params["training_params"]["use_amp"])
+        self.scaler = GradScaler('cuda', enabled=self.params["training_params"]["use_amp"])
 
         # Check if checkpoint exists
         checkpoint = self.get_checkpoint()
@@ -208,7 +240,7 @@ class GenericTrainingManager:
         if self.params["training_params"]["load_epoch"] in ("best", "last"):
             for filename in os.listdir(self.paths["checkpoints"]):
                 if self.params["training_params"]["load_epoch"] in filename:
-                    return torch.load(os.path.join(self.paths["checkpoints"], filename), map_location=self.device)
+                    return torch.load(os.path.join(self.paths["checkpoints"], filename), map_location=self.device, weights_only=False)
         return None
 
     def load_existing_model(self, checkpoint, strict=True):
@@ -220,52 +252,176 @@ class GenericTrainingManager:
         if "step" in checkpoint:
             self.latest_step = checkpoint["step"]
         self.best = checkpoint["best"]
-        if "scaler_state_dict" in checkpoint:
-            self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
+        if "scaler_state_dict" in checkpoint  and checkpoint["scaler_state_dict"]:
+                self.scaler.load_state_dict(checkpoint["scaler_state_dict"])
+        else:
+            print("⚠ AMP scaler state empty — starting fresh GradScaler()")
         # Load model weights from past training
         for model_name in self.models.keys():
             self.models[model_name].load_state_dict(checkpoint["{}_state_dict".format(model_name)], strict=strict)
+
+    def filter_state_dict_by_prefixes(self, state_dict, prefixes):
+        if prefixes is None:
+            return state_dict
+
+        return {
+            k: v for k, v in state_dict.items()
+            if any(k.startswith(p) for p in prefixes)
+        }
+
+    def set_seed(self, seed):
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
 
     def init_new_model(self):
         """
         Initialize model
         """
         # Specific weights initialization if exists
+        #for name, p in self.models["encoder"].named_parameters():
+        #    print(name, p.mean().item(), p.std().item())
+        self.set_seed(self.manual_seed)
         for model_name in self.models.keys():
             try:
                 self.models[model_name].init_weights()
             except:
                 pass
-
+        #for name, p in self.models["encoder"].named_parameters():
+        #    print(name, p.mean().item(), p.std().item())
         # Handle transfer learning instructions
         if self.params["model_params"]["transfer_learning"]:
             # Iterates over models
             for model_name in self.params["model_params"]["transfer_learning"].keys():
                 state_dict_name, path, learnable, strict = self.params["model_params"]["transfer_learning"][model_name]
+                print(f"Full path of path = {os.path.abspath(path)}")
+
+                # the file is best_xxx.pt the correct name must be found by getting the path without name and fetching the best_xx.pt filename
+                #path = "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best.pt"
+                directory = os.path.dirname(path)
+                # Find all files starting with 'best' and ending with '.pt'
+                best_files = glob.glob(os.path.join(directory, "best*.pt"))
+                best_found = False
+                if best_files:
+                    path = best_files[0]  # or use your own logic if multiple files
+                    print(f"Found best checkpoint: {path}")
+                    best_found = True
+                else:
+                    print("No best checkpoint found.")
                 # Loading pretrained weights file
-                checkpoint = torch.load(path, map_location=self.device)
-                try:
-                    # Load pretrained weights for model
-                    self.models[model_name].load_state_dict(checkpoint["{}_state_dict".format(state_dict_name)], strict=strict)
-                    print("transfered weights for {}".format(state_dict_name), flush=True)
-                except RuntimeError as e:
-                    print(e, flush=True)
-                    # if error, try to load each parts of the model (useful if only few layers are different)
-                    for key in checkpoint["{}_state_dict".format(state_dict_name)].keys():
-                        try:
-                            # for pre-training of decision layer
-                            if "end_conv" in key and "transfered_charset" in self.params["model_params"]:
-                                self.adapt_decision_layer_to_old_charset(model_name, key, checkpoint, state_dict_name)
+                if best_found:
+                    checkpoint = torch.load(path, map_location=self.device, weights_only=False)
+
+                    transfer_prefixes = self.params["model_params"].get("transfer_prefixes")
+
+                    if model_name == 'encoder' and self.params["model_params"]["models"]["encoder"]==ResNet18CTC:
+                        new_state_dict = {}
+
+                        for k, v in checkpoint.items():
+                            new_key = k
+
+                            # map top-level
+                            if k.startswith("conv1"):
+                                new_key = "features.0." + k.split("conv1.", 1)[1]
+                            elif k.startswith("bn1"):
+                                new_key = "features.1." + k.split("bn1.", 1)[1]
+                            elif k.startswith("layer1"):
+                                new_key = "features.3." + k[len("layer1."):]
+                            elif k.startswith("layer2"):
+                                new_key = "features.4." + k[len("layer2."):]
+                            elif k.startswith("layer3"):
+                                new_key = "features.5." + k[len("layer3."):]
+                            elif k.startswith("layer4"):
+                                new_key = "features.6." + k[len("layer4."):]
                             else:
-                                self.models[model_name].load_state_dict(
-                                    {key: checkpoint["{}_state_dict".format(state_dict_name)][key]}, strict=False)
-                        except RuntimeError as e:
-                            ## exception when adding linebreak token from pretraining
-                                print(e, flush=True)
+                                continue  # skip fc, etc.
+
+                            new_state_dict[new_key] = v
+                        missing, unexpected = self.models[model_name].load_state_dict(
+                            new_state_dict,
+                            strict=False   # must be False for partial loading
+                        )
+
+                        #model.load_state_dict(new_state_dict, strict=False)                        
+                    else:
+                        # show all keys in checkpoint
+                        #print("Keys in checkpoint:", list(checkpoint.keys()))
+                        #print("Keys in encoder state dict:", list(checkpoint["encoder_state_dict"].keys()))
+
+                        if checkpoint.get(f"{state_dict_name}_state_dict") is None:
+                            pretrained_dict = checkpoint
+                        else:
+                            pretrained_dict = checkpoint[f"{state_dict_name}_state_dict"]
+
+
+                        filtered_dict = self.filter_state_dict_by_prefixes(
+                            pretrained_dict,
+                            transfer_prefixes
+                        )
+
+                        missing, unexpected = self.models[model_name].load_state_dict(
+                            filtered_dict,
+                            strict=False   # must be False for partial loading
+                        )
+
+                    if transfer_prefixes is None:
+                        print("Transferred ALL encoder weights")
+                    else:
+                        print(f"Transferred encoder weights with prefixes: {transfer_prefixes}")
+
+                    print("Missing keys:", missing)
+                    print("Unexpected keys:", unexpected)
+
+
+                    '''
+                    try:
+                        # Load pretrained weights for model
+                        if checkpoint.get("{}_state_dict".format(state_dict_name)) is None:
+                            self.models[model_name].load_state_dict(checkpoint, strict=strict)
+                        else:
+                            self.models[model_name].load_state_dict(checkpoint["{}_state_dict".format(state_dict_name)], strict=strict)
+                        #self.models[model_name].load_state_dict(checkpoint["model"], strict=strict)
+                        print("transfered weights for {}".format(state_dict_name), flush=True)
+                    except RuntimeError as e:
+                        print(e, flush=True)
+                        # if error, try to load each parts of the model (useful if only few layers are different)
+                        for key in checkpoint["{}_state_dict".format(state_dict_name)].keys():
+                        #for key in checkpoint["model"].keys():
+                            try:
+                                # for pre-training of decision layer
+                                if "end_conv" in key and "transfered_charset" in self.params["model_params"]:
+                                    self.adapt_decision_layer_to_old_charset(model_name, key, checkpoint, state_dict_name)
+                                else:
+                                    self.models[model_name].load_state_dict(
+                                        {key: checkpoint["{}_state_dict".format(state_dict_name)][key]}, strict=False)
+                            except RuntimeError as e:
+                                ## exception when adding linebreak token from pretraining
+                                    print(e, flush=True)
+                    '''
                 # Set parameters no trainable
                 if not learnable:
                     self.set_model_learnable(self.models[model_name], False)
+        
+        enc = self.models["encoder"]
+        '''
+        enc_sd = enc.state_dict()
 
+        loaded = 0
+        total = 0
+        for k, v in enc_sd.items():
+            total += v.numel()
+            if k in pretrained_dict and pretrained_dict[k].shape == v.shape:
+                loaded += v.numel()
+
+        print("Loaded param fraction:", loaded / total)
+        '''
+        #wname = "init_blocks.0.conv1.weight"
+        #w = dict(enc.named_parameters())[wname]
+        #print("After load (after load best):", w.flatten()[0].item())
+
+
+    ''' the decoder also contains layout 'characters' so we need to adapt the decision layer'''
     def adapt_decision_layer_to_old_charset(self, model_name, key, checkpoint, state_dict_name):
         """
         Transfer learning of the decision learning in case of close charsets between pre-training and training
@@ -358,6 +514,9 @@ class GenericTrainingManager:
             'best': self.best,
             "charset": self.dataset.charset
         }
+
+        #print(f"charset length: {len(self.dataset.charset)}")
+
         for model_name in self.optimizers:
             content['optimizer_{}_state_dict'.format(model_name)] = self.optimizers[model_name].state_dict()
         for model_name in self.lr_schedulers:
@@ -435,7 +594,7 @@ class GenericTrainingManager:
 
     def backward_loss(self, loss, retain_graph=False):
         self.scaler.scale(loss).backward(retain_graph=retain_graph)
-
+    '''
     def step_optimizers(self, increment_step=True, names=None):
         for model_name in self.optimizers:
             if names and model_name not in names:
@@ -446,6 +605,47 @@ class GenericTrainingManager:
             self.scaler.step(self.optimizers[model_name])
         self.scaler.update()
         self.latest_step += 1
+    '''
+    def step_optimizers(self, increment_step=True, names=None):
+
+        for model_name, optimizer in self.optimizers.items():
+            if names and model_name not in names:
+                continue
+
+            # ---- Check if this optimizer has *any* grads ----
+            has_grad = False
+            for group in optimizer.param_groups:
+                for p in group["params"]:
+                    if p.grad is not None:
+                        has_grad = True
+                        break
+                if has_grad:
+                    break
+
+            # ---- Skip optimizers with no gradients ----
+            if not has_grad:
+                continue
+
+            # ---- Gradient clipping (only if grads exist) ----
+            if (
+                "gradient_clipping" in self.params["training_params"]
+                and model_name in self.params["training_params"]["gradient_clipping"]["models"]
+            ):
+                self.scaler.unscale_(optimizer)
+                torch.nn.utils.clip_grad_norm_(
+                    self.models[model_name].parameters(),
+                    self.params["training_params"]["gradient_clipping"]["max"]
+                )
+
+            # ---- AMP optimizer step ----
+            self.scaler.step(optimizer)
+
+        # Update scaler after stepping the optimizers that had gradients
+        self.scaler.update()
+
+        if increment_step:
+            self.latest_step += 1
+
 
     def zero_optimizers(self, set_to_none=True):
         for model_name in self.optimizers:
@@ -454,16 +654,135 @@ class GenericTrainingManager:
     def zero_optimizer(self, model_name, set_to_none=True):
         self.optimizers[model_name].zero_grad(set_to_none=set_to_none)
 
+    def grad_norm(self, module):
+        total = 0.0
+        for p in module.parameters():
+            if p.grad is not None:
+                total += p.grad.data.norm(2).item() ** 2
+        return total ** 0.5
+
+    def print_gradient_ratio(self):
+        grad_norm_encoder = self.grad_norm(self.models["encoder"])
+        grad_norm_decoder = self.grad_norm(self.models["decoder"])
+        ratio = grad_norm_encoder / (grad_norm_decoder + 1e-8)
+        print(f"Gradient ratio is {ratio}")
+
+    def freeze_by_prefixes(self, model, prefixes):
+        #if prefixes is None:
+        #    return
+        if prefixes is None:
+            for param in model.parameters():
+                param.requires_grad = False
+
+            model.eval()
+            return
+        # freeze params
+        for name, p in model.named_parameters():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                p.requires_grad = False
+
+        # freeze behavior (BN, dropout, etc.)
+        for name, m in model.named_modules():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                m.eval()
+
+    def unfreeze_by_prefixes(self, model, prefixes):
+        if prefixes is None:
+            for param in model.parameters():
+                param.requires_grad = True
+
+            model.train()
+            return
+        # unfreeze parameters
+        for name, p in model.named_parameters():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                p.requires_grad = True
+
+        # restore training behavior
+        for name, m in model.named_modules():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                m.train()
+
+    def set_learnable_by_prefixes(self, model, prefixes, learnable: bool):
+        if prefixes is None:
+            return
+        for name, p in model.named_parameters():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                p.requires_grad = learnable
+
+    def set_mode_by_prefixes(self, model, prefixes, train: bool):
+        if prefixes is None:
+            return
+        for name, module in model.named_modules():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                if train:
+                    module.train()
+                else:
+                    module.eval()
+
+
+    def set_bn_eval_for_prefixes(self, model, prefixes):
+        if prefixes is None:
+            return
+        for name, m in model.named_modules():
+            if any(name.startswith(pfx) for pfx in prefixes):
+                # freeze BN running stats
+                if "dropout" in m.__class__.__name__.lower():
+                    m.eval()
+
+    def encoder_stats(self, encoder, loader, device, n_batches=5):
+        if self.params["model_params"]["models"]["encoder"]==FCN_Encoder: 
+            encoder.eval()
+            all_means, all_stds = [], []
+            for i, batch in enumerate(loader):
+                if i >= n_batches: break
+                x = batch["imgs"].to(device)  # adjust indexing
+                z = encoder(x)
+
+                if torch.isnan(z).any() or torch.isinf(z).any():
+                    print("NaN/Inf detected!")
+                    return
+
+                # flatten all but batch dim
+                zf = z.view(z.size(0), -1)
+                all_means.append(zf.mean().item())
+                all_stds.append(zf.std(dim=0).mean().item())
+
+            print("mean(output):", sum(all_means)/len(all_means))
+            print("mean(feature std over batch):", sum(all_stds)/len(all_stds))
+
+    def rebuild_optimizer(self):
+        self.optimizer = torch.optim.AdamW(
+            [p for p in self.model.parameters() if p.requires_grad],
+            lr=self.lr,
+            weight_decay=self.weight_decay,
+        )
+
+
     def train(self):
         """
         Main training loop
         """
+
+        enc = self.models["encoder"]
+        #wname = "init_blocks.0.conv1.weight"
+        #w = dict(enc.named_parameters())[wname]
+        #print("After load (train):", w.flatten()[0].item())
+        self.dataset.train_dataset.training_info = {
+                        "epoch": self.latest_epoch,
+                        "step": self.latest_step
+                    }
+        self.encoder_stats(enc, self.dataset.train_loader, self.device, n_batches=5)
+        frozen = False
+
+
+
         # init tensorboard file and output param summary file
         if self.is_master:
             self.writer = SummaryWriter(self.paths["results"])
             self.save_params()
         # init variables
-        self.begin_time = time()
+        self.begin_time = time.time()
         focus_metric_name = self.params["training_params"]["focus_metric"]
         nb_epochs = self.params["training_params"]["max_nb_epochs"]
         interval_save_weights = self.params["training_params"]["interval_save_weights"]
@@ -475,31 +794,123 @@ class GenericTrainingManager:
             self.init_curriculum()
         # perform epochs
         for num_epoch in range(self.latest_epoch+1, nb_epochs):
+            if self.params["training_params"]["grad_ratio"] != None and num_epoch < self.params["training_params"]["grad_ratio"]:
+                self.print_gradient_ratio()
+            freeze_epochs = self.params["training_params"].get("freeze_encoder_epochs", -1)
+            freeze_prefixes = self.params["training_params"].get("freeze_prefixes", [])   
+
+            if num_epoch <= freeze_epochs:
+                if not frozen:
+                    print(f"Epoch {num_epoch}: freezing encoder prefixes {freeze_prefixes}")
+                    self.freeze_by_prefixes(self.models["encoder"], freeze_prefixes)
+                    self.reset_optimizer("encoder")
+                    frozen = True
+                '''
+                self.set_learnable_by_prefixes(
+                    self.models["encoder"],
+                    freeze_prefixes,
+                    learnable=False
+                )
+                #self.set_bn_eval_for_prefixes(self.models["encoder"],freeze_prefixes)
+                self.set_mode_by_prefixes(
+                    self.models["encoder"], 
+                    freeze_prefixes,
+                    train=False
+                )
+            else:
+                self.set_model_learnable(self.models["encoder"], True)
+                self.set_mode_by_prefixes(
+                    self.models["encoder"], 
+                    freeze_prefixes,
+                    train=True
+                )
+                '''
+
+            else:
+                if frozen:
+                    print(f"Epoch {num_epoch}: unfreezing encoder prefixes {freeze_prefixes}")
+                    self.unfreeze_by_prefixes(self.models["encoder"], freeze_prefixes)
+                    self.reset_optimizer("encoder")
+                frozen = False
+
             self.dataset.train_dataset.training_info = {
                 "epoch": self.latest_epoch,
                 "step": self.latest_step
             }
             self.phase = "train"
             # Check maximum training time stop condition
-            if self.params["training_params"]["max_training_time"] and time() - self.begin_time > self.params["training_params"]["max_training_time"]:
+            if self.params["training_params"]["max_training_time"] and time.time() - self.begin_time > self.params["training_params"]["max_training_time"]:
                 break
             # set models trainable
+            #for model_name in self.models.keys():
+            #    self.models[model_name].train()
             for model_name in self.models.keys():
+                # skip frozen encoder prefixes
+                if model_name == "encoder" and frozen:
+                    continue
                 self.models[model_name].train()
+
             self.latest_epoch = num_epoch
+
             if self.dataset.train_dataset.curriculum_config:
                 self.dataset.train_dataset.curriculum_config["epoch"] = self.latest_epoch
             # init epoch metrics values
             self.metric_manager["train"] = MetricManager(metric_names=metric_names, dataset_name=self.dataset_name)
+            #for name, module in self.models["encoder"].named_modules():
+            #    if isinstance(module, torch.nn.BatchNorm2d):
+            #        print(name, module.training)
+            #for name, module in self.models["encoder"].named_modules():
+            #    print(f"{os.name}: training={module.training}")                    
+            #for name, param in self.models["encoder"].named_parameters():
+            #    print(os.name, param.requires_grad)
+            #encoder = self.models["encoder"]
 
+            #print("TYPE:", type(encoder))
+            #print("REPR:", encoder)                
             with tqdm(total=len(self.dataset.train_loader.dataset)) as pbar:
                 pbar.set_description("EPOCH {}/{}".format(num_epoch, nb_epochs))
                 # iterates over mini-batch data
+                '''
+                save_dir = "debug_batches"
+                os.makedirs(save_dir, exist_ok=True)
+                '''
+
+                '''
+                for i, batch in enumerate(self.dataset.train_loader):
+                    with torch.no_grad():
+                        out = self.models["encoder"](batch)
+                        loss = criterion(...)
+                        if not torch.isfinite(loss):
+                            print("Bad batch:", i)
+                            # print paths / labels / lengths here
+                            break
+                '''
                 for ind_batch, batch_data in enumerate(self.dataset.train_loader):
+
+
+                    
                     self.latest_batch = ind_batch + 1
                     self.total_batch += 1
                     # train on batch data and compute metrics
+                    #with timer("train_batch"):
+                    '''
+                    imgs = batch_data["imgs"]
+
+                    # save first 8 images as a grid
+                    vutils.save_image(
+                        imgs[:8],
+                        os.path.join(save_dir, f"batch_{ind_batch}.png"),
+                        nrow=4,
+                        normalize=True,
+                        value_range=(0, 1)
+                    )
+
+                    if ind_batch >= 2:  # limit to first 3 batches
+                        break
+                    '''
+
                     batch_values = self.train_batch(batch_data, metric_names)
+                    #with timer("compute_metrics"):
                     batch_metrics = self.metric_manager["train"].compute_metrics(batch_values, metric_names)
                     batch_metrics["names"] = batch_data["names"]
                     batch_metrics["ids"] = batch_data["ids"]
@@ -507,6 +918,7 @@ class GenericTrainingManager:
                     if self.params["training_params"]["use_ddp"]:
                         batch_metrics = self.merge_ddp_metrics(batch_metrics)
                     # Update learning rate via scheduler if one is used
+                    #with timer("lr_scheduler"):
                     if self.params["training_params"]["lr_schedulers"]:
                         for model_name in self.models:
                             key = "all" if "all" in self.params["training_params"]["lr_schedulers"] else model_name
@@ -515,20 +927,47 @@ class GenericTrainingManager:
                                 if "lr" in metric_names:
                                     self.writer.add_scalar("lr_{}".format(model_name), self.lr_schedulers[model_name].lr, self.lr_schedulers[model_name].step_num)
                     # Update dropout scheduler if used
+                    #with timer("dropout_scheduler"):
                     if self.dropout_scheduler:
                         self.dropout_scheduler.step(len(batch_metrics["names"]))
                         self.dropout_scheduler.update_dropout_rate()
 
                     # Add batch metrics values to epoch metrics values
+                    #with timer("update_metrics"):
                     self.metric_manager["train"].update_metrics(batch_metrics)
                     display_values = self.metric_manager["train"].get_display_values()
                     pbar.set_postfix(values=str(display_values))
                     pbar.update(len(batch_data["names"]))
+            if "balance_gradient_ratio_using_lr" in self.params["training_params"] and self.params["training_params"]["balance_gradient_ratio_using_lr"]:
+                grad_norm_encoder = self.grad_norm(self.models["encoder"])
+                grad_norm_decoder = self.grad_norm(self.models["decoder"])
+                ratio = grad_norm_encoder / (grad_norm_decoder + 1e-8)
+                lr_encoder = self.params["training_params"]["optimizers"]["encoder"]["args"]["lr"]
+                lr_decoder = self.params["training_params"]["optimizers"]["decoder"]["args"]["lr"]
+                if ratio > 1.5 and ratio <= 2.5:
+                    lr_encoder = lr_encoder * 0.75
+                elif ratio > 2.5 and ratio <= 5.0:
+                    lr_encoder = lr_encoder * 0.5
+                elif ratio > 5.0:
+                    lr_encoder = lr_encoder * 0.25
+                lr_encoder = max(lr_encoder, lr_decoder * 0.01)
+                self.params["training_params"]["optimizers"]["encoder"]["args"]["lr"] = lr_encoder
+                self.optimizers["encoder"].param_groups[0]["lr"] = lr_encoder
 
             # log metrics in tensorboard file
             if self.is_master:
                 for key in display_values.keys():
                     self.writer.add_scalar('{}_{}'.format(self.params["dataset_params"]["train"]["name"], key), display_values[key], num_epoch)
+                grad_norm_encoder = self.grad_norm(self.models["encoder"])
+                grad_norm_decoder = self.grad_norm(self.models["decoder"])
+                ratio = grad_norm_encoder / (grad_norm_decoder + 1e-8)
+                self.writer.add_scalar('grad_norm/encoder', grad_norm_encoder, num_epoch)
+                self.writer.add_scalar('grad_norm/decoder', grad_norm_decoder, num_epoch)
+                self.writer.add_scalar('grad_norm/ratio', ratio, num_epoch)
+                #self.writer.add_scalar('learning_rate/encoder', self.optimizers["encoder"].param_groups[0]["lr"], num_epoch)
+                #self.writer.add_scalar('learning_rate/encoder_params', self.params["training_params"]["optimizers"]["encoder"]["args"]["lr"], num_epoch)
+                #self.writer.add_scalar('learning_rate/decoder', self.optimizers["decoder"].param_groups[0]["lr"], num_epoch)
+
             self.latest_train_metrics = display_values
 
             # evaluate and compute metrics for valid sets
@@ -561,6 +1000,16 @@ class GenericTrainingManager:
                     self.save_model(epoch=num_epoch, name="weigths", keep_weights=True)
                 self.writer.flush()
 
+    def cer_to_train_percentage(self, cer):
+        """
+        Convert CER to training percentage
+        """
+        if cer > 1.0:
+            return 10
+        factor = max(cer * 10, 1)
+        return factor
+
+
     def evaluate(self, set_name, **kwargs):
         """
         Main loop for validation
@@ -576,9 +1025,29 @@ class GenericTrainingManager:
         # initialize epoch metrics
         self.metric_manager[set_name] = MetricManager(metric_names, dataset_name=self.dataset_name)
         with tqdm(total=len(loader.dataset)) as pbar:
+            
             pbar.set_description("Evaluation E{}".format(self.latest_epoch))
             with torch.no_grad():
                 # iterate over batch data
+                number_of_batches = len(loader)
+                batch_count = 0
+
+                '''
+                for i, batch in enumerate(self.dataset.train_loader):
+                    with torch.no_grad():
+                        y = batch["labels"]
+                        x_reduced_len = [s[1] for s in batch["imgs_reduced_shape"]]
+                        y_len = batch["labels_len"]
+                        out = self.models["encoder"](batch)
+                        global_pred = self.models["decoder"](out)
+                        loss = loss_ctc(global_pred.permute(2, 0, 1), y, x_reduced_len, y_len)
+                        #loss = criterion(...)
+                        if not torch.isfinite(loss):
+                            print("Bad batch:", i)
+                            # print paths / labels / lengths here
+                            break
+                '''
+
                 for ind_batch, batch_data in enumerate(loader):
                     self.latest_batch = ind_batch + 1
                     # eval batch data and compute metrics
@@ -596,10 +1065,33 @@ class GenericTrainingManager:
 
                     pbar.set_postfix(values=str(display_values))
                     pbar.update(len(batch_data["names"]))
+                    batch_count += 1
+                    if self.params["training_params"]["early_stop_evaluation"] and batch_count > number_of_batches / self.cer_to_train_percentage(display_values["cer"]):
+                        #print("Early stopping on {} set at batch {} with cer {}".format(set_name, batch_count, display_values["cer"]))
+                        break
         if "cer_by_nb_cols" in metric_names:
             self.log_cer_by_nb_cols(set_name)
+        if self.params["training_params"]["log_values"]:
+            display_values2 = self.metric_manager[set_name].get_display_values(output=True)
+            # log metrics csv file
+            path = os.path.join(self.paths["logs"], "eval_{}_{}.txt".format(set_name, self.latest_epoch))
+            with open(path, "w") as f:
+                for metric_name in display_values2.keys():
+                    f.write("{}: {}\n".format(metric_name, display_values2[metric_name]))
+        # print final metrics            
         return display_values
+    
 
+    def log_cer_by_nb_cols(self, set_name):
+        """
+        Log CER by number of columns in tensorboard
+        """
+        if "cer_by_nb_cols" not in self.metric_manager[set_name].metric_names:
+            return
+        cer_by_nb_cols = self.metric_manager[set_name].metric_names["cer_by_nb_cols"]
+        for nb_cols, cer in cer_by_nb_cols.items():
+            self.writer.add_scalar('cer_by_nb_cols/{}'.format(nb_cols), cer, self.latest_epoch)
+            print("CER for {} columns: {}".format(nb_cols, cer))
     def predict(self, custom_name, sets_list, metric_names, output=False):
         """
         Main loop for evaluation
@@ -614,7 +1106,7 @@ class GenericTrainingManager:
 
         # initialize epoch metrics
         self.metric_manager[custom_name] = MetricManager(metric_names, self.dataset_name)
-
+        count = 0
         with tqdm(total=len(loader.dataset)) as pbar:
             pbar.set_description("Prediction")
             with torch.no_grad():
@@ -626,14 +1118,12 @@ class GenericTrainingManager:
                     batch_metrics = self.metric_manager[custom_name].compute_metrics(batch_values, metric_names)
                     batch_metrics["names"] = batch_data["names"]
                     batch_metrics["ids"] = batch_data["ids"]
-                    # merge batch metrics if Distributed Data Parallel is used
                     if self.params["training_params"]["use_ddp"]:
                         batch_metrics = self.merge_ddp_metrics(batch_metrics)
 
-                    # add batch metrics to epoch metrics
                     self.metric_manager[custom_name].update_metrics(batch_metrics)
                     display_values = self.metric_manager[custom_name].get_display_values()
-
+                    count+=1
                     pbar.set_postfix(values=str(display_values))
                     pbar.update(len(batch_data["names"]))
 

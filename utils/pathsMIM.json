@@ -1,0 +1,6 @@
+[
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_MIMline30perc_L2_random/results", "description": "Line 30 perc L2 random", "label": "MIM_line_30perc_L2_random" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_MIMpage50perc_L1_random/results", "description": "Page 50 perc L1 random", "label": "MIM_page_50perc_L1_random" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_frozen_part_init/results", "description": "Base random init", "label": "Base" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_supervised_trained/results", "description": "Supervised trained", "label": "Supervised" }
+]

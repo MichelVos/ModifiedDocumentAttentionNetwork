@@ -1,10 +1,44 @@
+#  Copyright Université de Rouen Normandie (1), INSA Rouen (2),
+#  tutelles du laboratoire LITIS (1 et 2)
+#  contributors :
+#  - Denis Coquenet
+#
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
+#
+#  This software is governed by the CeCILL-C license under French law and
+#  abiding by the rules of distribution of free software.  You can  use,
+#  modify and/ or redistribute the software under the terms of the CeCILL-C
+#  license as circulated by CEA, CNRS and INRIA at the following URL
+#  "http://www.cecill.info".
+#
+#  As a counterpart to the access to the source code and  rights to copy,
+#  modify and redistribute granted by the license, users are provided only
+#  with a limited warranty  and the software's author,  the holder of the
+#  economic rights,  and the successive licensors  have only  limited
+#  liability.
+#
+#  In this respect, the user's attention is drawn to the risks associated
+#  with loading,  using,  modifying and/or developing or reproducing the
+#  software by the user in light of its specific status of free software,
+#  that may mean  that it is complicated to manipulate,  and  that  also
+#  therefore means  that it is reserved for developers  and  experienced
+#  professionals having in-depth computer knowledge. Users are therefore
+#  encouraged to load and test the software's suitability as regards their
+#  requirements in conditions enabling the security of their systems and/or
+#  data to be ensured and,  more generally, to use and operate it in the
+#  same conditions as regards security.
+#
+#  The fact that you are presently reading this means that you have had
+#  knowledge of the CeCILL-C license and that you accept its terms.
+
 import os.path
 
 import torch
 from torch.optim import Adam
 from PIL import Image
 import numpy as np
-
+import logging
 from basic.models import FCN_Encoder
 from OCR.document_OCR.dan.models_dan import GlobalHTADecoder
 from OCR.document_OCR.dan.trainer_dan import Manager
@@ -63,7 +97,7 @@ def get_params(weight_path):
         },
 
         "training_params": {
-            "output_folder": "dan_rimes_page",  # folder name for checkpoint and results
+            "output_folder": "dan_IAM_page",  # folder name for checkpoint and results
             "max_nb_epochs": 50000,  # maximum number of epochs before to stop
             "max_training_time": 3600 * 24 * 1.9,  # maximum time before to stop (in seconds)
             "load_epoch": "last",  # ["best", "last"]: last to continue training, best to evaluate
@@ -81,8 +115,9 @@ def get_params(weight_path):
             "focus_metric": "cer",  # Metrics to focus on to determine best epoch
             "expected_metric_value": "low",  # ["high", "low"] What is best for the focus metric value
             "eval_metrics": ["cer", "wer", "map_cer"],  # Metrics name for evaluation on validation set during training
-            "force_cpu": True,  # True for debug purposes
+            "force_cpu": False,  # True for debug purposes
             "max_char_prediction": 3000,  # max number of token prediction
+            "showGroundTruthAndPrediction": True,  # Show ground truth and prediction in logs
             # Keep teacher forcing rate to 20% during whole training
             "teacher_forcing_scheduler": {
                 "min_error_rate": 0.2,
@@ -104,7 +139,7 @@ def get_params(weight_path):
 
 def predict(model_path, img_paths):
     params = get_params(model_path)
-    checkpoint = torch.load(model_path, map_location="cpu")
+    checkpoint = torch.load(model_path, map_location="cuda", weights_only=False)
     charset = checkpoint["charset"]
 
     manager = Manager(params)
@@ -140,8 +175,18 @@ def predict(model_path, img_paths):
 
 
 if __name__ == "__main__":
-
-    model_path = "outputs/dan_rimes_page/checkpoints/dan_rimes_page.pt"
-    img_paths = ["../../../test.png", "../../../test2.png"]  # CHANGE WITH YOUR IMAGES PATH
+    logging.basicConfig(level=logging.DEBUG)
+    errHandler = logging.FileHandler("error.log")
+    errHandler.setLevel(logging.DEBUG)
+    fmt = logging.Formatter(
+    "%(name)s: %(asctime)s | %(levelname)s | %(filename)s:%(lineno)s | %(process)d >>> %(message)s"
+    )
+    errHandler.setFormatter(fmt)
+    root_logger = logging.getLogger()
+    root_logger.addHandler(errHandler)
+    logger = logging.getLogger("DAN_predict")
+    logger.info("DAN predict example")
+    model_path = "/home/michel/dev/python/DAN/outputs/dan_IAM_page/checkpoints/best_295.pt"  # CHANGE WITH YOUR MODEL PATH
+    img_paths = ["/home/michel/dev/python/test/iam.jpeg"]  # CHANGE WITH YOUR IMAGES PATH
     predict(model_path, img_paths)
 

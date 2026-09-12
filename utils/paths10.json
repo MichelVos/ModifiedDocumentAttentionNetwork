@@ -1,0 +1,8 @@
+[
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_base_seqCLR10_frozen_10_012/results", "description": "seqCLR10 layers 0,1 , and 2", "label": "seqCLR10_012" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_base_seqCLR10_frozen_10/results", "description": "seqCLR10", "label": "seqCLR10" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_base_simCLR_frozen_10/results", "description": "simCLR 10", "label": "simCLR10" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_frozen_part_init/results", "description": "Base random init", "label": "Base" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_base_MIM_frozen_10_012/results", "description": "First MIM", "label": "MIM" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_supervised_trained/results", "description": "Supervised trained", "label": "Supervised" }
+]

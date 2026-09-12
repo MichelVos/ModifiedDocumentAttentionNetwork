@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -124,6 +124,7 @@ def pad_image(image, padding_value, new_height=None, new_width=None, pad_width=N
         raise NotImplementedError("pad_height and new_height are not compatible")
 
     h, w, c = image.shape
+    #print(f"pad_with: {pad_width}, pad_height: {pad_height}, new_width: {new_width}, new_height: {new_height}")
     pad_width = pad_width if pad_width is not None else max(0, new_width - w) if new_width is not None else 0
     pad_height = pad_height if pad_height is not None else max(0, new_height - h) if new_height is not None else 0
 

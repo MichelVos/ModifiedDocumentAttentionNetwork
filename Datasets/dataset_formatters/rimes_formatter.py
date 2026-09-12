@@ -51,6 +51,7 @@ SEM_MATCHING_TOKENS_STR = {
             'Objet': "ⓨ",  # why
             'Date, Lieu': "ⓦ",  # where, when
             'Coordonnées Destinataire': "ⓡ",  # recipient
+            'Coordonnes Destinataire': "ⓡ",  # recipient
         }
 
 # Layout begin-token to end-token

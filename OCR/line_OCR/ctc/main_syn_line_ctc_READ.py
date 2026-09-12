@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -40,7 +40,7 @@ ROOT_FOLDER = dirname(dirname(dirname(DOSSIER_COURRANT)))
 sys.path.append(ROOT_FOLDER)
 from OCR.line_OCR.ctc.trainer_line_ctc import TrainerLineCTC
 from OCR.line_OCR.ctc.models_line_ctc import Decoder, CTCtopR, DecoderRowWise, Decoder_BiLSTM, Decoder_Transformer
-from basic.models import FCN_Encoder, FCN_Encoder_Small, FCN_Encoder_Tiny, SeqCLREncoder, SeqCLREncoder2, ResNetEncoder, ResNet18CTC
+from basic.models import FCN_Encoder, FCN_Encoder_Small, FCN_Encoder_Tiny
 from torch.optim import Adam
 from basic.transforms import line_aug_config
 from basic.scheduler import exponential_dropout_scheduler, exponential_scheduler
@@ -97,8 +97,8 @@ print("Gradient ratio:", ratio)
 
 
 def main():
-    dataset_name = "IAM"  # ["RIMES", "READ_2016", "IAM"]
-    dataset_level = "syn_line"
+    dataset_name = "READ_2016"  # ["RIMES", "READ_2016", "IAM"]
+    dataset_level = "non_syn_line_cleaned"
     params = {
         "dataset_params": {
             "dataset_level": dataset_level,
@@ -125,7 +125,7 @@ def main():
                 "charset_mode": "CTC",  # add blank token
                 "constraints": ["CTC_line", ],  # Padding for CTC requirements if necessary
                 "normalize": True,  # Normalize with mean and variance of training dataset
-                "training_samples": None, # 2342, # 4684, # None,  # Number of training samples to use (None to use all samples)" 9368
+                "training_samples": 2092, # 4184, # 4184, # 418, # 418,  # READ: 8367 Number of training samples to use (None to use all samples)"
                 "padding": {
                     "min_height": "max",  # Pad to reach max height of training samples
                     "min_width": "max",  # Pad to reach max width of training samples
@@ -166,13 +166,9 @@ def main():
                         "padding_top_ratio_max": 0.2,
                         "padding_bottom_ratio_min": 0.02,
                         "padding_bottom_ratio_max": 0.2,
-                        "not_synthetic": False, #True, #True,  # If True, samples are extracted from the original images"
+                        "not_synthetic": True, #True,  # If True, samples are extracted from the original images"
                     },
                 },
-                #"max_size": {
-                #    "max_height": 128,  # Max height for training and evaluation (images are resized and padded to reach this size)
-                #    "max_width": 1232,  # Max width for training and evaluation (images are resized and padded to reach this size)  
-                #},
             
             }
         },
@@ -180,8 +176,8 @@ def main():
         "model_params": {
             # Model classes to use for each module
             "models": {
+                #"encoder": FCN_Encoder,
                 "encoder": FCN_Encoder,
-                #"encoder": ResNet18CTC, # FCN_Encoder, # SeqCLREncoder2, # 
                 "decoder": Decoder,
             },
             #"transfer_learning": None,
@@ -215,14 +211,21 @@ def main():
                 #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_128x1232_32x8_60perc_random/best.pt", True, True],
                 #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_128x1232_32x8_25perc_random/best.pt", True, True],
                 #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_25perc_random/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/DAN/outputs/IAM_contrastive_h64_bs64_div4/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/DAN/outputs_seed/READ_2016_contrastive_seed_1/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/DAN/outputs_seed/IAM_MIM_Contrastive_seed_1/best.pt", True, True],
+                #"decoder": ["decoder", "/home/michel/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
+                #"decoder": ["decoder", "/home/michel/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
+                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs_seed/READ_2016_cleaned_contrastive_seed_1/best.pt", True, True],
+                #"encoder": ["encoder", "/home/michel/dev/python/SparK/READ_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder": ["encoder", "/home/michel/dev/python/SparK/READ_pretrain_L2_224_40perc_block_set_encoder_A1/best.pt", True, True],
                 #"encoder": ["encoder", "/home/michel/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs_seed/IAM_contrastive_seed_1/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/SparK/IAM_pretrain_L2_224/best.pt", True, True],
+                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs_seed/READ_MIM_Contrastive_seed_1/best.pt", True, True],
+                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/SparK/BAUTZEN_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/SparK/BAUTZEN_READ_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/SparK/BAUTZEN_RD_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/DAN/outputs/READ_MIM_Random_Full_SimCLR_Seed_1/checkpoints/best.pt", True, True],
+                "encoder": ["encoder",  "/home/michel/dev/python/SparK/READ_200epochs_lr_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/DAN/outputs_seed/IAM_contrastive_seed_1/best.pt", True, True],
+                #"encoder": ["encoder",  "/home/michel/dev/python/DAN/outputs_seed/READ_2016_contrastive_seed_1/best.pt", True, True],
             },
             "transfer_prefixes": None, #["init_blocks.0", "init_blocks.1", "init_blocks.2"],  # Only these prefixes are loaded from the pretrained model. None to load all weights.  
             "input_channels": 3,  # 1 for grayscale images, 3 for RGB ones (or grayscale as RGB)
@@ -242,9 +245,9 @@ def main():
         },
 
         "training_params": {
-            "output_folder": "IAM_Pretrained RANDOM_SEED_2_domain_gap",  # folder names for logs and weigths FCN_IAM_line_syn, FCN_RIMES_line_syn, FCN_read_2016_line_syn
+            "output_folder": "READ_pretrainedMIM25perc",  # folder names for logs and weigths FCN_IAM_line_syn, FCN_RIMES_line_syn, FCN_read_2016_line_syn
             #"output_folder": "FCN_RIMES_line_syn",  # folder names for logs and weigths FCN_IAM_line_syn, FCN_RIMES_line_syn, FCN_read_2016_line_syn
-            "max_nb_epochs": 11,  # max number of epochs for the training
+            "max_nb_epochs": 150,  # max number of epochs for the training
             "freeze_encoder_epochs": -1,  # Number of epochs with encoder frozen at training beginning
             "freeze_prefixes": None, # ["init_blocks", "blocks.0"],  # Prefixes of encoder to freeze at training beginning"
             "max_training_time": 4*3600, # * 24 * 1.9,  # max training time limit (in seconds)
@@ -253,9 +256,9 @@ def main():
             "use_ddp": False,  # Use DistributedDataParallel
             "use_amp": True,  # Enable automatic mix-precision
             "nb_gpu": torch.cuda.device_count(),
-            "batch_size": 16, # 48,  # mini-batch size per GPU
+            "batch_size": 32,  # mini-batch size per GPU
             "grad_ratio": 1,  # None or number of epochs to show gradient ratio 
-            "manual_seed": 2,  # Random seed for reproducibility
+            "manual_seed": 1,  # Random seed for reproducibility
             "optimizers": {
                 #"all": {
                 #    "class": Adam,
@@ -286,6 +289,7 @@ def main():
             "showGroundTruthAndPrediction": False,  # Print ground truth and prediction
             "log_values": True,  # Log values in log file
             "lr_schedulers": None,  # Learning rate schedulers
+            "balance_gradient_ratio_using_lr": False,
             "eval_on_valid": True,  # Whether to eval and logs metrics on validation set during training or not
             "eval_on_valid_interval": 2,  # Interval (in epochs) to evaluate during training
             "focus_metric": "cer",  # Metrics to focus on to determine best epoch

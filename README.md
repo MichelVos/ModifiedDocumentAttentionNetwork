@@ -2,6 +2,7 @@
 
 
 
+
 # DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition
 This repository is a public implementation of the paper: "DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition".
 
@@ -141,7 +142,4 @@ The outputs files are split into two subfolders: "checkpoints" and "results". \
 
 ## License
 
-This whole project is under Cecill-C license.
-
-# ModifiedDocumentAttentionNetwork
-Modifications made to the Document Attention Network for my master's thesis.
+This whole project is under CeCILL-C license.

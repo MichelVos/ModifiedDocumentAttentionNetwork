@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -34,6 +34,7 @@
 
 import torch
 import random
+import math
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from basic.transforms import apply_data_augmentation
@@ -82,10 +83,13 @@ class DatasetManager:
         """
         Load training and validation datasets
         """
+        print(f'Loading train dataset {self.params["train"]["name"]} ...')
         self.train_dataset = self.dataset_class(self.params, "train", self.params["train"]["name"], self.get_paths_and_sets(self.params["train"]["datasets"]))
+        print('Compute std/mean...')
         self.params["config"]["mean"], self.params["config"]["std"] = self.train_dataset.compute_std_mean()
-
+        print('Std/mean computed:', self.params["config"]["mean"], self.params["config"]["std"])
         self.my_collate_function = self.train_dataset.collate_function(self.params["config"])
+        print('Apply specific treatment after dataset loading...')
         self.apply_specific_treatment_after_dataset_loading(self.train_dataset)
 
         for custom_name in self.params["valid"].keys():
@@ -214,7 +218,7 @@ class GenericDataset(Dataset):
         self.std = np.array(params["config"]["std"]) if "std" in params["config"].keys() else None
 
         self.load_in_memory = self.params["config"]["load_in_memory"] if "load_in_memory" in self.params["config"] else True
-
+        self.line_dataset = None
         self.samples = self.load_samples(paths_and_sets, load_in_memory=self.load_in_memory)
 
         if self.load_in_memory:
@@ -229,9 +233,13 @@ class GenericDataset(Dataset):
 
         self.curriculum_config = None
         self.training_info = None
+        self.number_of_samples = len(self.samples)
+        if set_name == "train" and params["config"]["training_samples"] is not None:
+            self.number_of_samples = min(self.number_of_samples, params["config"]["training_samples"])
+            print(f'Number of training samples: {self.number_of_samples}')
 
     def __len__(self):
-        return len(self.samples)
+        return self.number_of_samples
 
     @staticmethod
     def load_image(path):
@@ -240,6 +248,8 @@ class GenericDataset(Dataset):
             ## grayscale images
             if len(img.shape) == 2:
                 img = np.expand_dims(img, axis=2)
+            #if img.shape[1]>1232: # avoid too large images that can cause memory issues
+            #    img = cv2.resize(img, (1232, int(1232*img.shape[0]/img.shape[1])))
         return img
 
     @staticmethod
@@ -248,6 +258,7 @@ class GenericDataset(Dataset):
         Load images and labels
         """
         samples = list()
+        paragraphs = None
         for path_and_set in paths_and_sets:
             path = path_and_set["path"]
             set_name = path_and_set["set_name"]
@@ -261,12 +272,36 @@ class GenericDataset(Dataset):
                         label = gt[filename]["text"]
                     else:
                         label = gt[filename]
+                    
+                    lines = []
+                    if paragraphs == None:
+                        paragraphs = "pages" in gt[filename].keys() and not "lines" in gt[filename]["pages"][0].keys()
+                    if not paragraphs and "pages" in gt[filename].keys():
+                        for line in gt[filename]["pages"][0]["lines"]:
+                            lines.append({
+                                "top": line["top"],
+                                "bottom": line["bottom"],
+                                "left": line["left"],
+                                "right": line["right"],
+                                "text": line["text"]
+                            })
+                    if paragraphs and "pages" in gt[filename].keys():
+                        for para in gt[filename]["pages"][0]["paragraphs"]:
+                            for line in para["lines"]:
+                                lines.append({
+                                    "top": line["top"],
+                                    "bottom": line["bottom"],
+                                    "left": line["left"],
+                                    "right": line["right"],
+                                    "text": line["text"]
+                                })
                     samples.append({
                         "name": name,
                         "label": label,
                         "unchanged_label": label,
                         "path": full_path,
-                        "nb_cols": 1 if "nb_cols" not in gt[filename] else gt[filename]["nb_cols"]
+                        "nb_cols": 1 if "nb_cols" not in gt[filename] else gt[filename]["nb_cols"],
+                        "lines": lines
                     })
                     if load_in_memory:
                         samples[-1]["img"] = GenericDataset.load_image(full_path)

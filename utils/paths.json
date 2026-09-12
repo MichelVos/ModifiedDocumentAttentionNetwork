@@ -1,0 +1,8 @@
+[
+    { "path": "/data2/backup20260104/FCN_IAM_line_contrastive_line_seqCLR3/results", "description": "seqCLR3", "label": "seqCLR3" },
+    { "path": "/data2/backup20260104/FCN_IAM_line_contrastive_line_newloss_bs64_newaug_tau01/results", "description": "BS-64 tau=1 new augmentations", "label": "BS-64" },
+    { "path": "/data2/backup20260104/FCN_IAM_line_contrastive_line/results", "description": "simCLR contrastive", "label": "simCLR" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/results", "description": "Base random init", "label": "Base" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_contrastive_line_simCLR_tau01_frozen/results", "description": "simCLR tau=1 frozen", "label": "simCLRt1fr" },
+    { "path": "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_frozen_01_newcgpt_init_/results", "description": "seqCLR9 init easy augment", "label": "seqCLR9" }
+]

@@ -3,9 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in Python  whose purpose is to
-#  provide public implementation of deep learning works, in pytorch.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -36,11 +35,12 @@
 
 from Datasets.dataset_formatters.rimes_formatter import SEM_MATCHING_TOKENS as RIMES_MATCHING_TOKENS
 from Datasets.dataset_formatters.read2016_formatter import SEM_MATCHING_TOKENS as READ_MATCHING_TOKENS
+from Datasets.dataset_formatters.IAM_formatter import SEM_MATCHING_TOKENS as IAM_MATCHING_TOKENS
 import re
 import networkx as nx
 import editdistance
 import numpy as np
-from basic.post_pocessing_layout import PostProcessingModuleREAD, PostProcessingModuleRIMES
+from basic.post_pocessing_layout import PostProcessingModuleREAD, PostProcessingModuleRIMES, PostProcessingModuleIAM
 
 
 class MetricManager:
@@ -55,6 +55,11 @@ class MetricManager:
             self.post_processing_module = PostProcessingModuleRIMES
             self.matching_tokens = RIMES_MATCHING_TOKENS
             self.edit_and_num_edge_nodes = edit_and_num_items_for_ged_from_str_rimes
+        elif "IAM" in dataset_name and "page" in dataset_name:
+            self.post_processing_module = PostProcessingModuleIAM
+            self.matching_tokens = IAM_MATCHING_TOKENS
+            self.edit_and_num_edge_nodes = edit_and_num_items_for_ged_from_str_iam
+        
         else:
             self.matching_tokens = dict()
 
@@ -234,15 +239,16 @@ def edit_wer_from_string(gt, pred, layout_tokens=None):
     return edit_wer_from_formatted_split_text(split_gt, split_pred)
 
 
-def format_string_for_wer(str, layout_tokens):
+def format_string_for_wer(text, layout_tokens):
     """
     Format string for WER computation: remove layout tokens, treat punctuation as word, replace line break by space
     """
-    str = re.sub('([\[\]{}/\\()\"\'&+*=<>?.;:,!\-—_€#%°])', r' \1 ', str)  # punctuation processed as word
+    tr = re.sub(r'([\[\]{}/\\()\"\'&+*=<>?.;:,!\-—_€#%°])', r' \1 ', text)
+    #str = re.sub('([\[\]{}/\\()\"\'&+*=<>?.;:,!\-—_€#%°])', r' \1 ', str)  # punctuation processed as word
     if layout_tokens is not None:
-        str = keep_all_but_tokens(str, layout_tokens)  # remove layout tokens from metric
-    str = re.sub('([ \n])+', " ", str).strip()  # keep only one space character
-    return str.split(" ")
+        text = keep_all_but_tokens(text, layout_tokens)  # remove layout tokens from metric
+    text = re.sub('([ \n])+', " ", text).strip()  # keep only one space character
+    return text.split(" ")
 
 
 def format_string_for_cer(str, layout_tokens):
@@ -315,8 +321,9 @@ def compute_layout_AP_for_given_threshold(gt_list, pred_list, threshold):
         if cer <= threshold:
             correct[i] = True
             del remaining_gt_list[ind]
-    precision = np.cumsum(correct, dtype=np.int) / np.arange(1, len(pred_list)+1)
-    recall = np.cumsum(correct, dtype=np.int) / num_true
+    #precision = np.cumsum(correct, dtype=np.int) / np.arange(1, len(pred_list)+1
+    precision = np.cumsum(correct, dtype=int) / np.arange(1, len(pred_list)+1)
+    recall = np.cumsum(correct, dtype=int) / num_true
     max_precision_from_recall = np.maximum.accumulate(precision[::-1])[::-1]
     recall_diff = (recall - np.concatenate([np.array([0, ]), recall[:-1]]))
     P = np.sum(recall_diff * max_precision_from_recall)
@@ -395,6 +402,49 @@ def compute_global_precision_per_class_per_threshold(list_AP_per_class):
             mAP_per_class[key_class][threshold] = np.average(mAP_per_class[key_class][threshold]["precision"], weights=mAP_per_class[key_class][threshold]["weights"])
     return mAP_per_class
 
+def str_to_graph_iam(str):
+    """
+    Compute graph from string of layout tokens for the IAM dataset at page level
+    """
+    begin_layout_tokens = "".join(list(IAM_MATCHING_TOKENS.keys()))
+    layout_token_sequence = keep_only_tokens(str, begin_layout_tokens)
+    g = nx.DiGraph()
+    g.add_node("D", type="document", level=2, page=0)
+    token_name_dict = {
+        "ⓑ": 0,
+        "ⓢ": 0,
+        "ⓟ": 0
+    }
+    previous_top_level_node = None
+    previous_middle_level_node = None
+    previous_low_level_node = None
+    for ind, c in enumerate(layout_token_sequence):
+        token_name_dict[c] += 1
+        if c == "ⓟ":
+            node_name = "P_{}".format(token_name_dict[c])
+            g.add_node(node_name, type="page", level=3, page=token_name_dict["ⓟ"])
+            g.add_edge("D", node_name)
+            if previous_top_level_node:
+                g.add_edge(previous_top_level_node, node_name)
+            previous_top_level_node = node_name
+            previous_middle_level_node = None
+            previous_low_level_node = None
+        if c in "ⓢ":
+            node_name = "{}_{}".format("S", token_name_dict[c])
+            g.add_node(node_name, type="section", level=2, page=token_name_dict["ⓟ"])
+            g.add_edge(previous_top_level_node, node_name)
+            if previous_middle_level_node:
+                g.add_edge(previous_middle_level_node, node_name)
+            previous_middle_level_node = node_name
+            previous_low_level_node = None
+        if c in "ⓑ":
+            node_name = "{}_{}".format("B", token_name_dict[c])
+            g.add_node(node_name, type="body", level=1, page=token_name_dict["ⓟ"])
+            g.add_edge(previous_middle_level_node, node_name)
+            if previous_low_level_node:
+                g.add_edge(previous_low_level_node, node_name)
+            previous_low_level_node = node_name
+    return g
 
 def str_to_graph_read(str):
     """
@@ -475,6 +525,21 @@ def str_to_graph_rimes(str):
     return g
 
 
+def graph_edit_distance_by_page_iam(g1, g2):
+    """
+    Compute graph edit distance page by page for the READ 2016 dataset
+    """
+    num_pages_g1 = len([n for n in g1.nodes().items() if n[1]["level"] == 3])
+    num_pages_g2 = len([n for n in g2.nodes().items() if n[1]["level"] == 3])
+    page_graphs_1 = [g1.subgraph([n[0] for n in g1.nodes().items() if n[1]["page"] == num_page]) for num_page in range(1, num_pages_g1+1)]
+    page_graphs_2 = [g2.subgraph([n[0] for n in g2.nodes().items() if n[1]["page"] == num_page]) for num_page in range(1, num_pages_g2+1)]
+    edit = 0
+    for i in range(max(len(page_graphs_1), len(page_graphs_2))):
+        page_1 = page_graphs_1[i] if i < len(page_graphs_1) else nx.DiGraph()
+        page_2 = page_graphs_2[i] if i < len(page_graphs_2) else nx.DiGraph()
+        edit += graph_edit_distance(page_1, page_2)
+    return edit
+
 def graph_edit_distance_by_page_read(g1, g2):
     """
     Compute graph edit distance page by page for the READ 2016 dataset
@@ -506,6 +571,15 @@ def graph_edit_distance(g1, g2):
         new_edit = v
     return new_edit
 
+
+def edit_and_num_items_for_ged_from_str_iam(str_gt, str_pred):
+    """
+    Compute graph edit distance and num nodes/edges for normalized graph edit distance
+    For the IAM dataset
+    """
+    g_gt = str_to_graph_iam(str_gt)
+    g_pred = str_to_graph_iam(str_pred)
+    return graph_edit_distance_by_page_iam(g_gt, g_pred), g_gt.number_of_nodes() + g_gt.number_of_edges()
 
 def edit_and_num_items_for_ged_from_str_read(str_gt, str_pred):
     """

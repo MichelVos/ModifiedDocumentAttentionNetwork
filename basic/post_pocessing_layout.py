@@ -3,9 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in Python  whose purpose is to
-#  provide public implementation of deep learning works, in pytorch.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -36,6 +35,7 @@
 import numpy as np
 from Datasets.dataset_formatters.read2016_formatter import SEM_MATCHING_TOKENS as READ_MATCHING_TOKENS
 from Datasets.dataset_formatters.rimes_formatter import SEM_MATCHING_TOKENS as RIMES_MATCHING_TOKENS
+from Datasets.dataset_formatters.IAM_formatter import SEM_MATCHING_TOKENS as IAM_MATCHING_TOKENS
 
 
 class PostProcessingModule:
@@ -81,6 +81,124 @@ class PostProcessingModule:
         if self.confidence is not None:
             del self.confidence[index]
         self.num_op += 1
+
+
+class PostProcessingModuleIAM(PostProcessingModule):
+    """
+    Specific post-processing for the IAM dataset at page level
+    """
+    def __init__(self):
+        super(PostProcessingModuleIAM, self).__init__()
+        self.matching_tokens = IAM_MATCHING_TOKENS
+        self.reverse_matching_tokens = dict()
+        for key in self.matching_tokens:
+            self.reverse_matching_tokens[self.matching_tokens[key]] = key
+
+    def post_processing_page_labels(self):
+        """
+        Correct tokens of page detection.
+        """
+        ind = 0
+        while ind != len(self.prediction):
+            # Label must start with a begin-page token
+            if ind == 0 and self.prediction[ind] != "ⓟ":
+                self.insert_label(0, "ⓟ")
+                continue
+            # There cannot be tokens out of begin-page end-page scope: begin-page must be preceded by end-page
+            if self.prediction[ind] == "ⓟ" and ind != 0 and self.prediction[ind - 1] != "Ⓟ":
+                self.insert_label(ind, "Ⓟ")
+                continue
+            # There cannot be tokens out of begin-page end-page scope: end-page must be followed by begin-page
+            if self.prediction[ind] == "Ⓟ" and ind < len(self.prediction) - 1 and self.prediction[ind + 1] != "ⓟ":
+                self.insert_label(ind + 1, "ⓟ")
+            ind += 1
+        # Label must start with a begin-page token even for empty prediction
+        if len(self.prediction) == 0:
+            self.insert_label(0, "ⓟ")
+            ind += 1
+        # Label must end with a end-page token
+        if self.prediction[-1] != "Ⓟ":
+            self.insert_label(ind, "Ⓟ")
+
+    def post_processing(self):
+        """
+        Correct tokens of page number, section, body and annotations.
+        """
+        self.post_processing_page_labels()
+        ind = 0
+        begin_token = None
+        in_section = False
+        while ind != len(self.prediction):
+            # each tags must be closed while changing page
+            if self.prediction[ind] == "Ⓟ":
+                if begin_token is not None:
+                    self.insert_label(ind, self.matching_tokens[begin_token])
+                    begin_token = None
+                    ind += 1
+                elif in_section:
+                    self.insert_label(ind, self.matching_tokens["ⓢ"])
+                    in_section = False
+                    ind += 1
+                else:
+                    ind += 1
+                continue
+            # End token is removed if the previous begin token does not match with it
+            if self.prediction[ind] in "Ⓑ":
+                if begin_token == self.reverse_matching_tokens[self.prediction[ind]]:
+                    begin_token = None
+                    ind += 1
+                else:
+                    self.del_label(ind)
+                continue
+            if self.prediction[ind] == "Ⓢ":
+                # each sub-tags must be closed while closing section
+                if in_section:
+                    if begin_token is None:
+                        in_section = False
+                        ind += 1
+                    else:
+                        self.insert_label(ind, self.matching_tokens[begin_token])
+                        begin_token = None
+                        ind += 2
+                else:
+                    self.del_label(ind)
+                continue
+            if self.prediction[ind] == "ⓢ":
+                # A sub-tag must be closed before opening a section
+                if begin_token is not None:
+                    self.insert_label(ind, self.matching_tokens[begin_token])
+                    begin_token = None
+                    ind += 1
+                # A section must be closed before opening a new one
+                elif in_section:
+                    self.insert_label(ind, "Ⓢ")
+                    in_section = False
+                    ind += 1
+                else:
+                    in_section = True
+                    ind += 1
+                continue
+            if self.prediction[ind] in "ⓑ":
+                # Annotation and body must be in section
+                if begin_token is None:
+                    if in_section:
+                        begin_token = self.prediction[ind]
+                        ind += 1
+                    else:
+                        in_section = True
+                        self.insert_label(ind, "ⓢ")
+                        ind += 1
+                # Previous sub-tag must be closed
+                else:
+                    self.insert_label(ind, self.matching_tokens[begin_token])
+                    begin_token = None
+                    ind += 1
+                continue
+            ind += 1
+        res = "".join(self.prediction)
+        if self.confidence is not None:
+            return res, np.array(self.confidence)
+        return res
 
 
 class PostProcessingModuleREAD(PostProcessingModule):

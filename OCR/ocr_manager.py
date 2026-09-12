@@ -3,9 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in Python  whose purpose is to
-#  provide public implementation of deep learning works, in pytorch.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -71,30 +70,72 @@ class OCRManager(GenericTrainingManager):
                 dataset = self.dataset.test_datasets["{}-test".format(dataset_name)]
 
             samples = list()
-            for sample in dataset.samples:
-                for line_label in sample["label"].split("\n"):
-                    for chunk in [line_label[i:i+100] for i in range(0, len(line_label), 100)]:
-                        charset = charset.union(set(chunk))
-                        if len(chunk) > 0:
-                            samples.append({
-                                "path": sample["path"],
-                                "label": chunk,
-                                "nb_cols": 1,
-                            })
+            index = 0
+            handwritten = self.params["dataset_params"].get("config", {}).get("synthetic_data", {}).get("config", {}).get("not_synthetic", False)
+            while index < len(dataset.samples):
+                #for sample in dataset.samples:
+                sample = dataset.__getitem__(index, raw=handwritten)
+                if handwritten:
+                    for one_line in sample["lines"]:
+                        charset = charset.union(set(one_line["text"]))
+                        samples.append({
+                            "path": sample["path"],
+                            "label": one_line["text"],
+                            "top": one_line["top"],
+                            "bottom": one_line["bottom"],
+                            "left": one_line["left"],
+                            "right": one_line["right"],
+                            "nb_cols": 1,
+                            "index": index,
+                        })
+                        '''
+                        if self.params["dataset_params"].get("config", {}).get("synthetic_data", {}).get("config", {}).get("include_word_images", False):
+                            for one_word in one_line["words"]:
+                                charset = charset.union(set(one_word["text"]))
+                                samples.append({
+                                    "path": sample["path"],
+                                    "label": one_word["text"],
+                                    "top": one_word["top"],
+                                    "bottom": one_word["bottom"],
+                                    "left": one_word["left"],
+                                    "right": one_word["right"],
+                                    "nb_cols": 1,
+                                    "index": index,
+                                })
+                        '''
+                else:
+                    for line_label in sample["label"].split("\n"):
+                        for chunk in [line_label[i:i+100] for i in range(0, len(line_label), 100)]:
+                            charset = charset.union(set(chunk))
+                            if len(chunk) > 0:
+                                samples.append({
+                                    "path": sample["path"],
+                                    "label": chunk,
+                                    "nb_cols": 1,
+                                })
+                index += 1
 
             for i, sample in enumerate(samples):
                 ext = sample['path'].split(".")[-1]
                 img_name = "{}_{}.{}".format(set_name, i, ext)
                 img_path = os.path.join(set_path, img_name)
+                print(os.path.abspath(img_path))
 
-                img = dataset.generate_typed_text_line_image(sample["label"])
+                if self.params["dataset_params"].get("config", {}).get("synthetic_data", {}).get("config", {}).get("not_synthetic", False):
+                    img = dataset.generate_real_line_image(sample)
+                else:
+                    img = dataset.generate_typed_text_line_image(sample["label"])
                 Image.fromarray(img).save(img_path)
                 gt[set_name][img_name] = {
                     "text": sample["label"],
                     "nb_cols": sample["nb_cols"] if "nb_cols" in sample else 1
                 }
-                if "line_label" in sample:
-                    gt[set_name][img_name]["lines"] = sample["line_label"]
+                if "top" in sample:
+                    gt[set_name][img_name]["top"] = sample["top"]
+                    gt[set_name][img_name]["left"] = sample["left"]
+                    gt[set_name][img_name]["bottom"] = sample["bottom"]
+                    gt[set_name][img_name]["right"] = sample["right"]
+                    gt[set_name][img_name]["index"] = sample["index"]
 
         with open(os.path.join(path, "labels.pkl"), "wb") as f:
             pickle.dump({

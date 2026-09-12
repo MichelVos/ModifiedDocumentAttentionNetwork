@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -38,6 +38,7 @@ from PIL import Image, ImageOps
 from cv2 import erode, dilate, normalize
 import cv2
 import math
+import torch
 from basic.utils import randint, rand_uniform, rand
 from torchvision.transforms import RandomPerspective, RandomCrop, ColorJitter, GaussianBlur, RandomRotation
 from torchvision.transforms.functional import InterpolationMode
@@ -119,6 +120,31 @@ class GaussianNoise:
 
         return Image.fromarray(x_np.astype(np.uint8))
 
+class RandomErase:
+    """
+    Randomly erase a vertical or horizontal rectangle area in the image
+    """
+
+    def __init__(self, min_ratio, max_ratio, direction="vertical", fill_value=255):
+        self.min_ratio = min_ratio
+        self.max_ratio = max_ratio
+        self.direction = direction
+        self.fill_value = fill_value
+
+    def __call__(self, x):
+        x_np = np.array(x)
+        h, w = x_np.shape[:2]
+
+        if self.direction == "vertical":
+            erase_width = int(rand_uniform(self.min_ratio, self.max_ratio) * w)
+            x_start = randint(0, w - erase_width)
+            x_np[:, x_start:x_start + erase_width] = self.fill_value
+        else:  # horizontal
+            erase_height = int(rand_uniform(self.min_ratio, self.max_ratio) * h)
+            y_start = randint(0, h - erase_height)
+            x_np[y_start:y_start + erase_height, :] = self.fill_value
+
+        return Image.fromarray(x_np.astype(np.uint8))
 
 class Sharpen:
     """
@@ -268,8 +294,13 @@ def get_list_augmenters(img, aug_configs, fill_value):
         elif aug_config["type"] == "gaussian_blur":
             max_kernel_h = min(aug_config["max_kernel"], img.size[1])
             max_kernel_w = min(aug_config["max_kernel"], img.size[0])
-            kernel_h = randint(aug_config["min_kernel"], max_kernel_h + 1) // 2 * 2 + 1
-            kernel_w = randint(aug_config["min_kernel"], max_kernel_w + 1) // 2 * 2 + 1
+            min_kernel = aug_config["min_kernel"];
+            if min_kernel > max_kernel_h:
+                print(f"Warning: min_kernel ({min_kernel}) > max_kernel_h ({max_kernel_h}) -- skipping augmentation for this sample.")
+                continue  # or set kernel_h to a safe default (e.g., 1), or skip augmentation
+            #print(f"max_kernel_h: {max_kernel_h}, max_kernel_w: {max_kernel_w}, min_kernel: {min_kernel}")
+            kernel_h = randint(min_kernel, max_kernel_h + 1) // 2 * 2 + 1
+            kernel_w = randint(min_kernel, max_kernel_w + 1) // 2 * 2 + 1
             sigma = rand_uniform(aug_config["min_sigma"], aug_config["max_sigma"])
             augmenters.append(GaussianBlur(kernel_size=(kernel_w, kernel_h), sigma=sigma))
 
@@ -280,7 +311,11 @@ def get_list_augmenters(img, aug_configs, fill_value):
             alpha = rand_uniform(aug_config["min_alpha"], aug_config["max_alpha"])
             strength = rand_uniform(aug_config["min_strength"], aug_config["max_strength"])
             augmenters.append(Sharpen(alpha=alpha, strength=strength))
-
+        elif aug_config["type"] == "random_erase":
+            min_ratio = aug_config["min_ratio"]
+            max_ratio = aug_config["max_ratio"]
+            direction = aug_config["direction"]
+            augmenters.append(RandomErase(min_ratio=min_ratio, max_ratio=max_ratio, direction=direction, fill_value=fill_value))
         else:
             print("Error - unknown augmentor: {}".format(aug_config["type"]))
             exit(-1)
@@ -306,8 +341,12 @@ def apply_data_augmentation(img, da_config):
         random.shuffle(augmenters)
 
     for augmenter in augmenters:
-        img = augmenter(img)
-        applied_da.append(type(augmenter).__name__)
+        try:
+            img = augmenter(img)
+            applied_da.append(type(augmenter).__name__)
+        except torch._C._LinAlgError: # Catch any exception during augmentation
+            print(f"Error applying augmenter {type(augmenter).__name__}")
+            continue
 
     # convert to numpy array
     img = np.array(img)
@@ -324,6 +363,87 @@ def apply_transform(img, transform):
     img = transform(img)
     img = np.array(img)
     return np.expand_dims(img, axis=2) if len(img.shape) == 2 else img
+
+def line_aug_config_chatgpt(proba_use_da, p):
+    return {
+        "order": "random",
+        "proba": proba_use_da,
+        "augmentations": [
+            # --- Geometric ---
+            {
+                "type": "perspective",
+                "proba": p,
+                "min_factor": 0,
+                "max_factor": 0.2,  # reduce from 0.4
+            },
+            {
+                "type": "elastic_distortion",
+                "proba": p,
+                "min_alpha": 0.5,
+                "max_alpha": 0.8,   # keep mild
+                "min_sigma": 6,
+                "max_sigma": 9,
+                "min_kernel_size": 3,
+                "max_kernel_size": 7,
+            },
+            {
+                "type": "zoom_ratio",
+                "proba": p,
+                "min_ratio_h": 0.9,  # less height compression
+                "max_ratio_h": 1.0,
+                "min_ratio_w": 0.95,
+                "max_ratio_w": 1.0,
+                "keep_dim": True
+            },
+
+            # --- Morphological ---
+            {
+                "type": "dilation_erosion",
+                "proba": p,
+                "min_kernel": 1,
+                "max_kernel": 2,     # smaller kernels, lighter effect
+                "iterations": 1,
+            },
+
+            # --- Photometric ---
+            {
+                "type": "color_jittering",
+                "proba": p,
+                "factor_hue": 0.1,
+                "factor_brightness": 0.3,
+                "factor_contrast": 0.3,
+                "factor_saturation": 0.3,
+            },
+            {
+                "type": "gaussian_blur",
+                "proba": p,
+                "min_kernel": 3,
+                "max_kernel": 3,
+                "min_sigma": 0.3,    # was 3–5: way too strong
+                "max_sigma": 0.8,
+            },
+            {
+                "type": "gaussian_noise",
+                "proba": p,
+                "std": 0.05,         # was 0.5: far too high
+            },
+            {
+                "type": "sharpen",
+                "proba": p,
+                "min_alpha": 0.2,
+                "max_alpha": 0.6,
+                "min_strength": 0.2,
+                "max_strength": 0.8,
+            },
+            {
+                "type": "rotation",
+                "proba": p,
+                "min_angle": -2,
+                "max_angle": 2
+            },
+
+        ]
+    }
 
 
 def line_aug_config(proba_use_da, p):
@@ -458,6 +578,68 @@ def aug_config(proba_use_da, p):
                 "type": "gaussian_noise",
                 "proba": p,
                 "std": 0.5,
+            },
+            {
+                "type": "sharpen",
+                "proba": p,
+                "min_alpha": 0,
+                "max_alpha": 1,
+                "min_strength": 0,
+                "max_strength": 1,
+            },
+        ]
+    }
+
+def aug_config_real(proba_use_da, p):
+    return {
+        "order": "random",
+        "proba": proba_use_da,
+        "augmentations": [
+            {
+                "type": "dpi",
+                "proba": p,
+                "min_factor": 0.75,
+                "max_factor": 1,
+                "preserve_ratio": True,
+            },
+            {
+                "type": "perspective",
+                "proba": p,
+                "min_factor": 0,
+                "max_factor": 0.4,
+            },
+            {
+                "type": "elastic_distortion",
+                "proba": p,
+                "min_alpha": 0.5,
+                "max_alpha": 1,
+                "min_sigma": 1,
+                "max_sigma": 10,
+                "min_kernel_size": 3,
+                "max_kernel_size": 9,
+            },
+            {
+                "type": "dilation_erosion",
+                "proba": p,
+                "min_kernel": 1,
+                "max_kernel": 3,
+                "iterations": 1,
+            },
+            {
+                "type": "color_jittering",
+                "proba": p,
+                "factor_hue": 0.2,
+                "factor_brightness": 0.4,
+                "factor_contrast": 0.4,
+                "factor_saturation": 0.4,
+            },
+            {
+                "type": "gaussian_blur",
+                "proba": p,
+                "min_kernel": 3,
+                "max_kernel": 5,
+                "min_sigma": 3,
+                "max_sigma": 5,
             },
             {
                 "type": "sharpen",

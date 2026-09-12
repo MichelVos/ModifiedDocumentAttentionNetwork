@@ -62,18 +62,26 @@ def train_and_test(rank, params):
     params["training_params"]["ddp_rank"] = rank
     model = TrainerLineCTC(params)
 
-    model.generate_syn_line_dataset("READ_2016_syn_line")  # ["RIMES_syn_line", "READ_2016_syn_line"]
+    #model.generate_syn_line_dataset("READ_2016_syn_line")  # ["RIMES_syn_line", "READ_2016_syn_line"]
+    #model.generate_syn_line_dataset("IAM_non_syn_line")  # ["RIMES_syn_line", "READ_2016_syn_line", "IAM_syn_line"]
+    model.generate_syn_line_dataset("READ_2016_non_syn_line")  # ["RIMES_syn_line", "READ_2016_syn_line", "IAM_syn_line"]
+    #model.generate_syn_line_dataset("RIMES_non_syn_line")  # ["RIMES_syn_line", "READ_2016_syn_line", "IAM_syn_line"]
 
 
 def main():
-    dataset_name = "READ_2016"  # ["RIMES", "READ_2016"]
+    #dataset_name = "READ_2016"  # ["RIMES", "READ_2016"]
+    #dataset_name = "IAM"  # ["RIMES", "READ_2016", "IAM"]
+    #dataset_name = "READ_2016"  # ["RIMES", "READ_2016", "IAM"]
+    dataset_name = "READ_2016"  # ["RIMES", "READ_2016", "IAM"]
     dataset_level = "page"
     params = {
         "dataset_params": {
+            "dataset_level": dataset_level,
             "dataset_manager": OCRDatasetManager,
             "dataset_class": OCRDataset,
             "datasets": {
-                dataset_name: "../../../Datasets/formatted/{}_{}".format(dataset_name, dataset_level),
+                #dataset_name: "../../../Datasets/formatted/{}_{}".format(dataset_name, dataset_level),
+                dataset_name: "../formatted/{}_{}".format(dataset_name, dataset_level),
             },
             "train": {
                 "name": "{}-train".format(dataset_name),
@@ -93,9 +101,15 @@ def main():
                 "charset_mode": "CTC",  # add blank token
                 "constraints": [],  # Padding for CTC requirements if necessary
                 "normalize": True,  # Normalize with mean and variance of training dataset
-                "preprocessings": [],
+                "preprocessings": [
+                    {
+                        "type": "to_RGB",
+                        # if grayscaled image, produce RGB one (3 channels with same value) otherwise do nothing
+                    },
+                ],
                 # Augmentation techniques to use at training time
-                "augmentation": line_aug_config(0.9, 0.1),
+                #"augmentation": line_aug_config(0.9, 0.1),
+                "augmentation": None,
                 #
                 "synthetic_data": {
                     "mode": "line_hw_to_printed",
@@ -119,6 +133,7 @@ def main():
                         "padding_top_ratio_max": 0.2,
                         "padding_bottom_ratio_min": 0.02,
                         "padding_bottom_ratio_max": 0.2,
+                        "not_synthetic": True,  # If True, samples are extracted from the original images"
                     },
                 },
             }
@@ -138,18 +153,26 @@ def main():
                 "T": 5e4,
             },
             "dropout": 0.5,
+            "rnn_type": 'lstm',
+            "rnn_layers": 3,
+            "rnn_hidden_size": 256,
+            "flattening": 'maxpool',
+            "stn": False,
         },
 
         "training_params": {
-            "output_folder": "FCN_Encoder_read_syn_line_all_pad_max_cursive",  # folder names for logs and weigths
+            "early_stop_evaluation": False,  # Early stop evaluation on validation set if cer > 0.1
+            "showGroundTruthAndPrediction": False,  # Print ground truth and prediction
+            "log_values": True,  # Log values in log file
+            "output_folder": "FCN_Encoder_rimes_syn_line_all_pad_max_cursive",  # folder names for logs and weigths
             "max_nb_epochs": 10000,  # max number of epochs for the training
-            "max_training_time": 3600 * 24 * 1.9,  # max training time limit (in seconds)
+            "max_training_time": 1800, # 3600 * 24 * 1.9,  # max training time limit (in seconds)
             "load_epoch": "last",  # ["best", "last"], to load weights from best epoch or last trained epoch
             "interval_save_weights": None,  # None: keep best and last only
             "use_ddp": False,  # Use DistributedDataParallel
             "use_amp": True,  # Enable automatic mix-precision
             "nb_gpu": torch.cuda.device_count(),
-            "batch_size": 1,  # mini-batch size per GPU
+            "batch_size": 3,  # mini-batch size per GPU
             "optimizers": {
                 "all": {
                     "class": Adam,

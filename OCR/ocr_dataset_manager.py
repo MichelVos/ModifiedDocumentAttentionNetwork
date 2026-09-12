@@ -3,9 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in Python  whose purpose is to
-#  provide public implementation of deep learning works, in pytorch.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -39,6 +38,7 @@ from basic.utils import pad_images, pad_image_width_right, resize_max, pad_image
 from basic.utils import randint, rand, rand_uniform
 from basic.generic_dataset_manager import apply_preprocessing
 from Datasets.dataset_formatters.read2016_formatter import SEM_MATCHING_TOKENS as READ_MATCHING_TOKENS
+from Datasets.dataset_formatters.IAM_formatter import SEM_MATCHING_TOKENS as IAM_MATCHING_TOKENS
 from Datasets.dataset_formatters.rimes_formatter import order_text_regions as order_text_regions_rimes
 from Datasets.dataset_formatters.rimes_formatter import SEM_MATCHING_TOKENS as RIMES_MATCHING_TOKENS
 from Datasets.dataset_formatters.rimes_formatter import SEM_MATCHING_TOKENS_STR as RIMES_MATCHING_TOKENS_STR
@@ -55,7 +55,7 @@ from PIL import Image, ImageDraw, ImageFont
 from basic.transforms import RandomRotation, apply_transform, Tightening
 from fontTools.ttLib import TTFont
 from fontTools.unicode import Unicode
-
+from torchvision.utils import save_image
 
 class OCRDatasetManager(DatasetManager):
     """
@@ -68,8 +68,9 @@ class OCRDatasetManager(DatasetManager):
         self.charset = params["charset"] if "charset" in params else self.get_merged_charsets()
 
         if "synthetic_data" in self.params["config"] and self.params["config"]["synthetic_data"] and "config" in self.params["config"]["synthetic_data"]:
+            real_line_strips = self.params["config"]["synthetic_data"]["config"].get("not_synthetic", False)
             self.char_only_set = self.charset.copy()
-            for token_dict in [RIMES_MATCHING_TOKENS, READ_MATCHING_TOKENS]:
+            for token_dict in [RIMES_MATCHING_TOKENS, READ_MATCHING_TOKENS, IAM_MATCHING_TOKENS]:
                 for key in token_dict:
                     if key in self.char_only_set:
                         self.char_only_set.remove(key)
@@ -78,7 +79,8 @@ class OCRDatasetManager(DatasetManager):
             for token in ["\n", ]:
                 if token in self.char_only_set:
                     self.char_only_set.remove(token)
-            self.params["config"]["synthetic_data"]["config"]["valid_fonts"] = get_valid_fonts(self.char_only_set)
+            if not real_line_strips:
+                self.params["config"]["synthetic_data"]["config"]["valid_fonts"] = get_valid_fonts(self.char_only_set)
 
         if "new_tokens" in params:
             self.charset = sorted(list(set(self.charset).union(set(params["new_tokens"]))))
@@ -119,9 +121,11 @@ class OCRDatasetManager(DatasetManager):
         if "READ_2016" in dataset.name and "augmentation" in dataset.params["config"] and dataset.params["config"]["augmentation"]:
             dataset.params["config"]["augmentation"]["fill_value"] = tuple([int(i) for i in dataset.mean])
         if "padding" in dataset.params["config"] and dataset.params["config"]["padding"]["min_height"] == "max":
-            dataset.params["config"]["padding"]["min_height"] = max([s["img"].shape[0] for s in self.train_dataset.samples])
+            #dataset.params["config"]["padding"]["min_height"] = max([s["img"].shape[0] for s in self.train_dataset.samples])
+            dataset.params["config"]["padding"]["min_height"] = max([s["img"].shape[0] for s in dataset.samples])
         if "padding" in dataset.params["config"] and dataset.params["config"]["padding"]["min_width"] == "max":
-            dataset.params["config"]["padding"]["min_width"] = max([s["img"].shape[1] for s in self.train_dataset.samples])
+            #dataset.params["config"]["padding"]["min_width"] = max([s["img"].shape[1] for s in self.train_dataset.samples])
+            dataset.params["config"]["padding"]["min_width"] = max([s["img"].shape[1] for s in dataset.samples])
 
 
 class OCRDataset(GenericDataset):
@@ -136,18 +140,25 @@ class OCRDataset(GenericDataset):
         self.reduce_dims_factor = np.array([params["config"]["height_divisor"], params["config"]["width_divisor"], 1])
         self.collate_function = OCRCollateFunction
         self.synthetic_id = 0
+        #self.hack = False
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx, raw=False):
         sample = copy.deepcopy(self.samples[idx])
+
+        assert "token_label" in sample, f"token_label not in batch data keys: {sample.keys()}"
 
         if not self.load_in_memory:
             sample["img"] = self.get_sample_img(idx)
             sample = apply_preprocessing(sample, self.params["config"]["preprocessings"])
-
-        if "synthetic_data" in self.params["config"] and self.params["config"]["synthetic_data"] and self.set_name == "train":
-            sample = self.generate_synthetic_data(sample)
-
-        # Data augmentation
+        nonSynthetic = False
+        if self.params["dataset_level"].startswith("non_syn_line"):
+            nonSynthetic = self.params["config"].get("synthetic_data", {}).get("config", {}).get("not_synthetic", False)
+        if "synthetic_data" in self.params["config"] and self.params["config"]["synthetic_data"] and self.set_name == "train" and not nonSynthetic:
+                if not raw:
+                    sample = self.generate_synthetic_data(sample)
+                    
+        if raw:
+            return sample
         sample["img"], sample["applied_da"] = self.apply_data_augmentation(sample["img"])
 
         if "max_size" in self.params["config"] and self.params["config"]["max_size"]:
@@ -201,8 +212,61 @@ class OCRDataset(GenericDataset):
                                           padding_mode=self.params["config"]["padding"]["mode"],
                                           return_position=True)
         sample["img_reduced_position"] = [np.ceil(p / factor).astype(int) for p, factor in zip(sample["img_position"], self.reduce_dims_factor[:2])]
+        saveImage = self.params["config"] and not raw and "save_image" in self.params["config"] and self.params["config"]["save_image"] is not None
+        if saveImage:
+            save_image(sample["img"], idx, sample["label"])
+
         return sample
 
+    def save_image(self, image, idx, ground_truth):
+        img = torch.tensor(image).permute(2,0,1).float()
+
+        # denormalize
+        mean = torch.tensor(self.mean).view(3,1,1)
+        std = torch.tensor(self.std).view(3,1,1)
+        img = img * std + mean
+        # img = img.clamp(0, 1)
+        img = img.clamp(0,255) / 255.0
+
+        base_path = os.path.join(
+            self.params["config"]["save_image"],
+            f"{self.set_name}_{idx}"
+        )
+
+        image_path = base_path + ".png"
+        save_image(img, image_path)
+
+        # ---------- Save ground truth text ----------
+        label = ground_truth               # e.g. string
+        label_path = base_path + ".txt"
+
+        with open(label_path, "w", encoding="utf-8") as f:
+            f.write(str(label))
+
+    def set_mean_std(self, mean, std):
+        """
+        Set the mean and std for normalization
+        """
+        self.mean = mean
+        self.std = std
+
+    def get_image_float(self, index):
+        """
+        Docstring for get_image_float
+        
+        :param self: 
+        :param index: The index of the image in the dataset
+
+        Returns the raw image as a float numpy array with data in range [0, 1]
+        """
+        img = self.__getitem__(index, raw=True)["img"]
+        x_raw = (img * self.std + self.mean) / 255.0
+        return x_raw
+
+    def check_samples(self):
+        for (idx, sample) in enumerate(self.samples):
+            print("Batch sample :", sample)
+            assert "token_label" in sample, f"token_label not in batch data keys: {sample.keys()}"
 
     def get_charset(self):
         charset = set()
@@ -216,6 +280,9 @@ class OCRDataset(GenericDataset):
         """
         for i in range(len(self.samples)):
             self.samples[i] = self.convert_sample_labels(self.samples[i])
+            #print("Batch sample keys:", self.samples[i].keys())
+            assert "token_label" in self.samples[i], f"token_label not in batch data keys: {self.samples.keys()}"
+        print("convert_labels finished")
 
     def convert_sample_labels(self, sample):
         label = sample["label"]
@@ -239,7 +306,7 @@ class OCRDataset(GenericDataset):
         sample["token_line_label"] = [LM_str_to_ind(self.charset, l) for l in line_labels]
         sample["line_label_len"] = [len(l) for l in line_labels]
         sample["nb_lines"] = len(line_labels)
-
+        sample["lines"] = sample.get("lines", None)
         sample["word_label"] = word_labels
         sample["token_word_label"] = [LM_str_to_ind(self.charset, l) for l in word_labels]
         sample["word_label_len"] = [len(l) for l in word_labels]
@@ -248,7 +315,8 @@ class OCRDataset(GenericDataset):
 
     def generate_synthetic_data(self, sample):
         config = self.params["config"]["synthetic_data"]
-
+        #print(f"{self.training_info}")
+        #print(f"Generating synthetic data for step {self.training_info['step']} with params: {self.params}")
         if not (config["init_proba"] == config["end_proba"] == 1):
             nb_samples = self.training_info["step"] * self.params["batch_size"]
             if config["start_scheduler_at_max_line"]:
@@ -310,7 +378,20 @@ class OCRDataset(GenericDataset):
                 pages.append(self.generate_synthetic_read2016_page(background, coords, side=side, crop=crop,
                                                                nb_lines=nb_lines_per_page))
             elif "RIMES" in self.params["datasets"].keys():
-                pages.append(self.generate_synthetic_rimes_page(background, nb_lines=nb_lines_per_page, crop=crop))
+                configconfig = self.params["config"]["synthetic_data"]["config"]
+                realHTR = configconfig.get("not_synthetic", False)
+                if not realHTR:
+                    pages.append(self.generate_synthetic_rimes_page(background, nb_lines=nb_lines_per_page, crop=crop))
+                else:
+                    pages.append(self.generate_synthetic_rimes_page_HTR(background, nb_lines=nb_lines_per_page, crop=crop))
+            elif "IAM" in self.params["datasets"].keys():
+                coords = {
+                    "left": int(0.15 * page_width),
+                    "right": int(0.95 * page_width),
+                    "top": int(0.05 * h),
+                    "bottom": int(0.85 * h),
+                }
+                pages.append(self.generate_synthetic_iam_page(background, coords, nb_lines=nb_lines_per_page, crop=crop))
             else:
                 raise NotImplementedError
 
@@ -344,8 +425,103 @@ class OCRDataset(GenericDataset):
         sample = self.convert_sample_labels(sample)
         return sample
 
-    def generate_synthetic_rimes_page(self, background, nb_lines=20, crop=False):
+    def generate_synthetic_iam_page(self, background, coords, nb_lines=10, crop=False):
+        # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         max_nb_lines = self.get_syn_max_lines()
+        config = self.params["config"]["synthetic_data"]
+        matching_token = IAM_MATCHING_TOKENS
+        page_labels = {
+            "raw": "",
+            "begin": "ⓟ",
+            "sem": "ⓟ",
+        }
+        area_top = 0 if crop else coords["top"]
+        area_left = coords["left"]
+        area_right = coords["right"]
+        area_bottom = coords["bottom"]
+        ratio_ann = rand_uniform(0.6, 0.7)
+        while nb_lines > 0:
+            nb_body_lines = randint(1, nb_lines+1) # Number of lines in the body section
+            
+            body_labels = list() # List of labels for the body section
+            body_imgs = list() # List of images for the body section
+            while nb_body_lines > 0:
+                current_nb_lines = 1
+                label, img = self.get_printed_line_iam("body") # Get a printed line for the body section
+
+                nb_body_lines -= current_nb_lines # Subtract 1
+                body_labels.append(label)
+                body_imgs.append(img)
+            max_width_body = int(np.floor(ratio_ann*(area_right-area_left)))
+            for img_list, max_width in zip([body_imgs], [max_width_body]):
+                for i in range(len(img_list)):
+                    if img_list[i].shape[1] > max_width:
+                        ratio = max_width/img_list[i].shape[1]
+                        new_h = int(np.floor(ratio*img_list[i].shape[0]))
+                        #if new_h != 48:
+                        #    new_h = 48
+                        new_w = int(np.floor(ratio*img_list[i].shape[1]))
+                        img_list[i] = cv2.resize(img_list[i], (new_w, new_h), interpolation=cv2.INTER_LINEAR)
+            body_top = area_top
+            body_height = 0
+            i_body = 0
+            for (label, img) in zip(body_labels, body_imgs):
+                remaining_height = area_bottom - body_top
+                if img.shape[0] > remaining_height:
+                    nb_lines = 0
+                    break
+                background[body_top:body_top+img.shape[0], area_left:area_left+img.shape[1]] = img
+                body_height += img.shape[0]
+                body_top += img.shape[0]
+                nb_lines -= 1
+                i_body += 1
+
+
+            area_top = area_top + body_height
+            if nb_lines > 0:
+               area_top += randint(25, 100)
+
+
+            body_full_labels = {
+                "raw": "",
+                "begin": "",
+                "sem": "",
+            }
+            if i_body > 0:
+                for key in ["sem", "begin"]:
+                    body_full_labels[key] += "ⓑ"
+                body_full_labels["raw"] += "\n"
+                for key in body_full_labels.keys():
+                    body_full_labels[key] += "\n".join(body_labels[:i_body])
+                body_full_labels["sem"] += matching_token["ⓑ"]
+
+            section_labels = dict()
+            for key in body_full_labels.keys():
+                section_labels[key] = body_full_labels[key]
+            for key in section_labels.keys():
+                if section_labels[key] != "":
+                    if key in ["sem", "begin"]:
+                        section_labels[key] = "ⓢ" + section_labels[key]
+                    if key == "sem":
+                        section_labels[key] = section_labels[key] + matching_token["ⓢ"]
+            for key in page_labels.keys():
+                page_labels[key] += section_labels[key]
+
+        if crop:
+            background = background[:area_top]
+
+        page_labels["sem"] += matching_token["ⓟ"]
+        # page_labels["sem"] = page_labels["sem"].replace("ⒷⓈⓢⓑ", "\n")
+        for key in page_labels.keys():
+            page_labels[key] = page_labels[key].strip()
+
+        return [background, page_labels, 1]
+
+    def generate_synthetic_rimes_page_HTR(self, background, nb_lines=20, crop=False):
+        configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = configconfig.get("not_synthetic", False)
+        max_nb_lines = self.get_syn_max_lines()
+
         def larger_lines(label):
             lines = label.split("\n")
             new_lines = list()
@@ -361,19 +537,400 @@ class OCRDataset(GenericDataset):
                     new_lines.append(lines[0])
                     del lines[0]
             return "\n".join(new_lines)
+        
+        def get_random_sample():
+            return random.choice(self.line_dataset)
+
+        def pick_line_for_category(lines, category):
+            if category == 'Corps de texte':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) > 5:
+                        return sample
+            if category == 'Ouverture':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <=4:
+                        return sample
+            if category == 'Date, Lieu':
+                while True:
+                    sample = get_random_sample()
+                    if any(c.isdigit() for c in sample["label"]):
+                        return sample
+            if category == 'PS/PJ':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <=4:
+                        return sample
+            if category == 'Coordonnées Expéditeur':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <= 8:
+                        return sample
+            if category == 'Coordonnées Destinataire':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <= 4:
+                        return sample
+            if category == 'Objet':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <= 4:
+                        return sample
+            if category == 'Reference':
+                while True:
+                    sample = get_random_sample()
+                    if len(sample["label"].split()) <= 4:
+                        return sample
+            return get_random_sample()
+        
+        def number_of_lines_per_mode(mode):
+            if mode == 'Corps de texte':
+                return randint(5, 15)
+            if mode == 'Ouverture':
+                return randint(1, 3)
+            if mode == 'Date, Lieu':
+                return randint(1, 2)
+            if mode == 'PS/PJ':
+                return randint(1, 3)
+            if mode == 'Coordonnées Expéditeur':
+                return randint(1, 5)
+            if mode == 'Coordonnées Destinataire':
+                return randint(1, 3)
+            if mode in ['Objet', 'Reference']:
+                return randint(1, 2)
+            return randint(1, 5)
         config = self.params["config"]["synthetic_data"]
         max_len = 100
         matching_tokens = RIMES_MATCHING_TOKENS
         matching_tokens_str = RIMES_MATCHING_TOKENS_STR
         h, w, c = background.shape
+        # Determine the number of paragraph-lines for all pages and put this in a list
+        # I don't have this when using the HTR line dataset
         num_lines = list()
-        for s in self.samples:
-            l = sum([len(p["label"].split("\n")) for p in s["paragraphs_label"]])
-            num_lines.append(l)
+        #if not realHTR:
+        #    for s in self.samples:
+        #        l = sum([len(p["label"].split("\n")) for p in s["paragraphs_label"]])
+        #        num_lines.append(l)
+
+        # Determine the number of lines to put in the page, based on the distribution of the number of lines in the real pages, to be as close as possible to the real data distribution. I don't have this when using the HTR line dataset, so I just pick a random number of lines between min and max.
         stats = self.stat_sem_rimes()
+
         ordered_modes = ['Corps de texte', 'PS/PJ', 'Ouverture', 'Date, Lieu', 'Coordonnées Expéditeur', 'Coordonnées Destinataire', ]
         object_ref = ['Objet', 'Reference']
         random.shuffle(object_ref)
+        # This is to ensure that object and reference are not always in the same position in the order, 
+        # to avoid biasing the model to always expect them at the same place. They are placed after 
+        # the first 3 modes, which are more likely to be present and have more lines, to increase the 
+        # chances of having them in the generated pages.
+        ordered_modes = ordered_modes[:3] + object_ref + ordered_modes[3:]
+        kept_modes = list()
+        for mode in ordered_modes:
+            if rand_uniform(0, 1) < stats[mode]:
+                kept_modes.append(mode)
+
+        paragraphs = dict()
+        for mode in kept_modes:
+            paragraphs[mode] = []
+        for mode in kept_modes:
+            # paragraphs[mode] = self.get_paragraph_rimes(mode=mode, mix=True)
+            # proba to merge multiple body textual contents
+            if mode == "Corps de texte" and rand_uniform(0, 1) < 0.2:
+                nb_lines = min(nb_lines+10, max_nb_lines) if max_nb_lines < 30 else nb_lines+10
+                # get nb_lines from self.line_dataset to increase variability, instead of merging only the lines from the same page
+                
+                #concat_line = randint(0, 2) == 0
+                #if concat_line:
+                #    paragraphs[mode]["label"] = larger_lines(paragraphs[mode]["label"])
+                for i in range(10):
+                    paragraphs[mode].append(pick_line_for_category(self.line_dataset, mode))
+                #while (len(paragraphs[mode]["label"].split("\n")) <= 30):
+                #    body2 = self.get_paragraph_rimes(mode=mode, mix=True)
+                #    paragraphs[mode]["label"] += "\n" + larger_lines(body2["label"]) if concat_line else body2["label"]
+                #    paragraphs[mode]["label"] = "\n".join(paragraphs[mode]["label"].split("\n")[:40])
+        # proba to set whole text region to uppercase
+        for _ in range(3):
+            if rand_uniform(0, 1) < 0.1:
+                paragraphs["Corps de texte"].append(pick_line_for_category(self.line_dataset, "Corps de texte")) #["label"] = paragraphs["Corps de texte"]["label"].upper().replace("È", "E").replace("Ë", "E").replace("Û", "U").replace("Ù", "U").replace("Î", "I").replace("Ï", "I").replace("Â", "A").replace("Œ", "OE")
+        # proba to duplicate a line and place it randomly elsewhere, in a body region
+        #if rand_uniform(0, 1) < 0.1 and "Corps de texte" in paragraphs:
+        #    labels = paragraphs["Corps de texte"]["label"].split("\n")
+        #    duplicated_label = labels[randint(0, len(labels))]
+        #    labels.insert(randint(0, len(labels)), duplicated_label)
+        #    paragraphs["Corps de texte"]["label"] = "\n".join(labels)
+        # proba to merge successive lines to have longer text lines in body
+        #if rand_uniform(0, 1) < 0.1 and "Corps de texte" in paragraphs:
+        #    paragraphs["Corps de texte"]["label"] = larger_lines(paragraphs["Corps de texte"]["label"])
+        for mode in paragraphs.keys():
+            for _ in range(number_of_lines_per_mode(mode)):
+                paragraphs[mode].append(pick_line_for_category(self.line_dataset, mode))
+        page_labels = {
+            "raw": "",
+            "begin": "",
+            "sem": ""
+        }
+        top_limit = 0
+        bottom_limit = h
+        max_bottom_crop = 0
+        min_top_crop = h
+        has_opening = has_object = has_reference = False
+        top_opening = top_object = top_reference = 0
+        right_opening = right_object = right_reference = 0
+        has_reference = False
+        date_on_top = False
+        date_alone = False
+        for mode in kept_modes:
+            pg = paragraphs[mode]
+            if len(pg) > nb_lines:
+                pg = pg[:nb_lines]
+            nb_lines -= len(pg)
+            pg_image = self.generate_typed_text_paragraph_imageHTR(pg, padding_value=255, max_pad_left_ratio=1, same_font_size=True)
+            # proba to remove some interline spacing
+            if rand_uniform(0, 1) < 0.1:
+                pg_image = apply_transform(pg_image, Tightening(color=255, remove_proba=0.75))
+            # proba to rotate text region
+            if rand_uniform(0, 1) < 0.1:
+                pg_image = apply_transform(pg_image, RandomRotation(degrees=10, expand=True, fill=255))
+            pg["added"] = True
+            if mode == 'Corps de texte':
+                pg_image = resize_max(pg_image, max_height=int(0.5*h), max_width=w)
+                img_h, img_w = pg_image.shape[:2]
+                min_top = int(0.4*h)
+                max_top = int(0.9*h - img_h)
+                top = randint(min_top, max_top + 1)
+                left = randint(0, int(w - img_w) + 1)
+                bottom_body = top + img_h
+                top_body = top
+                bottom_limit = min(top, bottom_limit)
+            elif mode == "PS/PJ":
+                pg_image = resize_max(pg_image, max_height=int(0.03*h), max_width=int(0.9*w))
+                img_h, img_w = pg_image.shape[:2]
+                min_top = bottom_body
+                max_top = int(min(h - img_h, bottom_body + 0.15*h))
+                top = randint(min_top, max_top + 1)
+                left = randint(0, int(w - img_w) + 1)
+                bottom_limit = min(top, bottom_limit)
+            elif mode == "Ouverture":
+                pg_image = resize_max(pg_image, max_height=int(0.03 * h), max_width=int(0.9 * w))
+                img_h, img_w = pg_image.shape[:2]
+                min_top = int(top_body - 0.05 * h)
+                max_top = top_body - img_h
+                top = randint(min_top, max_top + 1)
+                left = randint(0, min(int(0.15*w), int(w - img_w)) + 1)
+                has_opening = True
+                top_opening = top
+                right_opening = left + img_w
+                bottom_limit = min(top, bottom_limit)
+            elif mode == "Objet":
+                pg_image = resize_max(pg_image, max_height=int(0.03 * h), max_width=int(0.9 * w))
+                img_h, img_w = pg_image.shape[:2]
+                max_top = top_reference - img_h if has_reference else top_opening - img_h if has_opening else top_body - img_h
+                min_top = int(max_top - 0.05 * h)
+                top = randint(min_top, max_top + 1)
+                left = randint(0, min(int(0.15*w), int(w - img_w)) + 1)
+                has_object = True
+                top_object = top
+                right_object = left + img_w
+                bottom_limit = min(top, bottom_limit)
+            elif mode == "Reference":
+                pg_image = resize_max(pg_image, max_height=int(0.03 * h), max_width=int(0.9 * w))
+                img_h, img_w = pg_image.shape[:2]
+                max_top = top_object - img_h if has_object else top_opening - img_h if has_opening else top_body - img_h
+                min_top = int(max_top - 0.05 * h)
+                top = randint(min_top, max_top + 1)
+                left = randint(0, min(int(0.15*w), int(w - img_w)) + 1)
+                has_reference = True
+                top_reference = top
+                right_reference = left + img_w
+                bottom_limit = min(top, bottom_limit)
+            elif mode == 'Date, Lieu':
+                pg_image = resize_max(pg_image, max_height=int(0.03 * h), max_width=int(0.45 * w))
+                img_h, img_w = pg_image.shape[:2]
+                if h - max_bottom_crop - 10 > img_h and randint(0, 10) == 0:
+                    top = randint(max_bottom_crop, h)
+                    left = randint(0, w-img_w)
+                else:
+                    min_top = top_body - img_h
+                    max_top = top_body - img_h
+                    min_left = 0
+                    # Check if there is anough place to put the date at the right side of opening, reference or object
+                    if object_ref == ['Objet', 'Reference']:
+                        have = [has_opening, has_object, has_reference]
+                        rights = [right_opening, right_object, right_reference]
+                        tops = [top_opening, top_object, top_reference]
+                    else:
+                        have = [has_opening, has_reference, has_object]
+                        rights = [right_opening, right_reference, right_object]
+                        tops = [top_opening, top_reference, top_object]
+                    for right_r, top_r, has_r in zip(rights, tops, have):
+                        if has_r:
+                            if right_r + img_w >= 0.95*w:
+                                max_top = min(top_r - img_h, max_top)
+                                min_left = 0
+                            else:
+                                min_left = max(min_left, right_r+0.05*w)
+                                min_top = top_r - img_h if min_top == top_body - img_h else min_top
+                    if min_left != 0 and randint(0, 5) == 0:
+                        min_left = 0
+                        for right_r, top_r, has_r in zip(rights, tops, have):
+                            if has_r:
+                                max_top = min(max_top, top_r-img_h)
+
+                    max_left = max(min_left, w - img_w)
+
+                    # No placement found at right-side of opening, reference or object
+                    if min_left == 0:
+                        # place on the top
+                        if randint(0, 2) == 0:
+                            min_top = 0
+                            max_top = int(min(0.05*h, max_top))
+                            date_on_top = True
+                        # place just before object/reference/opening
+                        else:
+                            min_top = int(max(0, max_top - 0.05*h))
+                            date_alone = True
+                            max_left = min(max_left, int(0.1*w))
+
+                    min_top = min(min_top, max_top)
+                    top = randint(min_top, max_top + 1)
+                    left = randint(int(min_left), max_left + 1)
+                    if date_on_top:
+                        top_limit = max(top_limit, top + img_h)
+                    else:
+                        bottom_limit = min(top, bottom_limit)
+                    date_right = left + img_w
+                    date_bottom = top + img_h
+            elif mode == "Coordonnées Expéditeur":
+                max_height = min(0.25*h, bottom_limit-top_limit)
+                if max_height <= 0:
+                    pg["added"] = False
+                    print("ko", bottom_limit, top_limit)
+                    break
+                pg_image = resize_max(pg_image, max_height=int(max_height), max_width=int(0.45 * w))
+                img_h, img_w = pg_image.shape[:2]
+                top = randint(top_limit, bottom_limit-img_h+1)
+                left = randint(0, int(0.5*w-img_w)+1)
+            elif mode == "Coordonnées Destinataire":
+                if h - max_bottom_crop - 10 > 0.2*h and randint(0, 10) == 0:
+                    pg_image = resize_max(pg_image, max_height=int(0.2*h), max_width=int(0.45 * w))
+                    img_h, img_w = pg_image.shape[:2]
+                    top = randint(max_bottom_crop, h)
+                    left = randint(0, w-img_w)
+                else:
+                    max_height = min(0.25*h, bottom_limit-top_limit)
+                    if max_height <= 0:
+                        pg["added"] = False
+                        print("ko", bottom_limit, top_limit)
+                        break
+                    pg_image = resize_max(pg_image, max_height=int(max_height), max_width=int(0.45 * w))
+                    img_h, img_w = pg_image.shape[:2]
+                    if date_alone and w - date_right - img_w > 11:
+                        top = randint(0, date_bottom-img_h+1)
+                        left = randint(max(int(0.5*w), date_right+10), w-img_w)
+                    else:
+                        top = randint(top_limit, bottom_limit-img_h+1)
+                        left = randint(int(0.5*w), int(w - img_w)+1)
+
+            bottom = top+img_h
+            right = left+img_w
+            min_top_crop = min(top, min_top_crop)
+            max_bottom_crop = max(bottom, max_bottom_crop)
+            try:
+                background[top:bottom, left:right, ...] = pg_image
+            except:
+                pg["added"] = False
+                nb_lines = 0
+            pg["coords"] = {
+                "top": top,
+                "bottom": bottom,
+                "right": right,
+                "left": left
+            }
+
+            if nb_lines <= 0:
+                break
+        sorted_pg = order_text_regions_rimes(paragraphs.values())
+        for pg in sorted_pg:
+            if "added" in pg.keys() and pg["added"]:
+                pg_label = "\n".join(pg["lines"])
+                mode = pg["type"]
+                begin_token = matching_tokens_str[mode]
+                end_token = matching_tokens[begin_token]
+                page_labels["raw"] += pg_label
+                page_labels["begin"] += begin_token + pg_label
+                page_labels["sem"] += begin_token + pg_label + end_token
+        if crop:
+            if min_top_crop > max_bottom_crop:
+                print("KO - min > MAX")
+            elif min_top_crop > h:
+                print("KO - min > h")
+            else:
+                background = background[min_top_crop:max_bottom_crop]
+        return [background, page_labels, 1]
+
+    def generate_synthetic_rimes_page(self, background, nb_lines=20, crop=False):
+        configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = configconfig.get("not_synthetic", False)
+        max_nb_lines = self.get_syn_max_lines()
+
+        def larger_lines(label):
+            lines = label.split("\n")
+            new_lines = list()
+            while len(lines) > 0:
+                if len(lines) == 1:
+                    new_lines.append(lines[0])
+                    del lines[0]
+                elif len(lines[0]) + len(lines[1]) < max_len:
+                    new_lines.append("{} {}".format(lines[0], lines[1]))
+                    del lines[1]
+                    del lines[0]
+                else:
+                    new_lines.append(lines[0])
+                    del lines[0]
+            return "\n".join(new_lines)
+        
+        def pick_line_for_category(lines, category):
+            if category == 'Corps de texte':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) > 10])
+            if category == 'Ouverture':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 4])
+            if category == 'Date, Lieu':
+                return random.choice([l for l in self.line_dataset if any(c.isdigit() for c in l["label"])])
+            if category == 'PS/PJ':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 4])
+            if category == 'Coordonnées Expéditeur':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 8])
+            if category == 'Coordonnées Destinataire':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 4])
+            if category == 'Objet':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 4])
+            if category == 'Reference':
+                return random.choice([l for l in self.line_dataset if len(l["label"].split()) <= 4])
+            return random.choice(self.line_dataset)
+
+        config = self.params["config"]["synthetic_data"]
+        max_len = 100
+        matching_tokens = RIMES_MATCHING_TOKENS
+        matching_tokens_str = RIMES_MATCHING_TOKENS_STR
+        h, w, c = background.shape
+        # Determine the number of paragraph-lines for all pages and put this in a list
+        # I don't have this when using the HTR line dataset
+        num_lines = list()
+        if not realHTR:
+            for s in self.samples:
+                l = sum([len(p["label"].split("\n")) for p in s["paragraphs_label"]])
+                num_lines.append(l)
+
+        # Determine the number of lines to put in the page, based on the distribution of the number of lines in the real pages, to be as close as possible to the real data distribution. I don't have this when using the HTR line dataset, so I just pick a random number of lines between min and max.
+        stats = self.stat_sem_rimes()
+
+        ordered_modes = ['Corps de texte', 'PS/PJ', 'Ouverture', 'Date, Lieu', 'Coordonnées Expéditeur', 'Coordonnées Destinataire', ]
+        object_ref = ['Objet', 'Reference']
+        random.shuffle(object_ref)
+        # This is to ensure that object and reference are not always in the same position in the order, 
+        # to avoid biasing the model to always expect them at the same place. They are placed after 
+        # the first 3 modes, which are more likely to be present and have more lines, to increase the 
+        # chances of having them in the generated pages.
         ordered_modes = ordered_modes[:3] + object_ref + ordered_modes[3:]
         kept_modes = list()
         for mode in ordered_modes:
@@ -675,7 +1232,10 @@ class OCRDataset(GenericDataset):
         }
 
     def generate_synthetic_read2016_page(self, background, coords, side="left", nb_lines=20, crop=False):
+        # #################################################################################################
         config = self.params["config"]["synthetic_data"]
+        configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = configconfig.get("not_synthetic", False)
         two_column = False
         matching_token = READ_MATCHING_TOKENS
         page_labels = {
@@ -683,24 +1243,27 @@ class OCRDataset(GenericDataset):
             "begin": "ⓟ",
             "sem": "ⓟ",
         }
+
+        # generate page number
         area_top = 0 if crop else coords["top"]
         area_left = coords["left"]
         area_right = coords["right"]
         area_bottom = coords["bottom"]
-        num_page_text_label = str(randint(0, 1000))
-        num_page_img = self.generate_typed_text_line_image(num_page_text_label)
+        if not realHTR:
+            num_page_text_label = str(randint(0, 1000))
+            num_page_img = self.generate_typed_text_line_image(num_page_text_label)
 
-        if side == "left":
-            background[area_top:area_top+num_page_img.shape[0], area_left:area_left+num_page_img.shape[1]] = num_page_img
-        else:
-            background[area_top:area_top + num_page_img.shape[0], area_right-num_page_img.shape[1]:area_right] = num_page_img
-        for key in ["sem", "begin"]:
-            page_labels[key] += "ⓝ"
-        for key in page_labels.keys():
-            page_labels[key] += num_page_text_label
-        page_labels["sem"] += matching_token["ⓝ"]
-        nb_lines -= 1
-        area_top = area_top + num_page_img.shape[0] + randint(1, 20)
+            if side == "left":
+                background[area_top:area_top+num_page_img.shape[0], area_left:area_left+num_page_img.shape[1]] = num_page_img
+            else:
+                background[area_top:area_top + num_page_img.shape[0], area_right-num_page_img.shape[1]:area_right] = num_page_img
+            for key in ["sem", "begin"]:
+                page_labels[key] += "ⓝ"
+            for key in page_labels.keys():
+                page_labels[key] += num_page_text_label
+            page_labels["sem"] += matching_token["ⓝ"]
+            nb_lines -= 1
+            area_top = area_top + num_page_img.shape[0] + randint(1, 20)
         ratio_ann = rand_uniform(0.6, 0.7)
         while nb_lines > 0:
             nb_body_lines = randint(1, nb_lines+1)
@@ -843,22 +1406,137 @@ class OCRDataset(GenericDataset):
                         return label, img
 
     def get_printed_line_read_2016(self, mode="body"):
+        config = self.params["config"]["synthetic_data"]["config"]
         while True:
-            sample = self.samples[randint(0, len(self))]
-            for page in sample["pages_label"]:
-                paragraphs = list()
-                paragraphs.extend(page["paragraphs"])
-                random.shuffle(paragraphs)
-                for pg in paragraphs:
-                    random.shuffle(pg["lines"])
-                    for line in pg["lines"]:
-                        if (mode == "body" and len(line["text"]) > 5) or (mode == "annotation" and len(line["text"]) < 15 and not line["text"].isdigit()):
+            if config.get("not_synthetic", False):
+                #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                sample_index = randint(0, self.line_dataset.__len__()-1)
+                one_line = self.line_dataset.samples[sample_index]
+                text = one_line["label"].translate(str.maketrans("", "", "ⓟⓢⓑⒷⓈⓅ"))
+                if (mode == "body" and len(text) > 5) or (mode == "annotation" and len(text) < 15 and not text.isdigit()):
+                    line_sample = {
+                                "path": one_line["path"],
+                                "label": text,
+                                "top": one_line["top"],
+                                "bottom": one_line["bottom"],
+                                "left": one_line["left"],
+                                "right": one_line["right"],
+                                "img": one_line["img"],
+                                "nb_cols": 1,
+                                "index": sample_index,
+                            }
+                    img = self.generate_real_line_image(line_sample)
+                    label = text
+
+                    # label =             
+                    return label, img
+            else:
+                sample = self.samples[randint(0, len(self))]
+                for page in sample["pages_label"]:
+                    paragraphs = list()
+                    paragraphs.extend(page["paragraphs"])
+                    random.shuffle(paragraphs)
+                    for pg in paragraphs:
+                        random.shuffle(pg["lines"])
+                        for line in pg["lines"]:
+                            if (mode == "body" and len(line["text"]) > 5) or (mode == "annotation" and len(line["text"]) < 15 and not line["text"].isdigit()):
+                                label = line["text"]
+                                img = self.generate_typed_text_line_image(label)
+                                return label, img
+
+    '''  IAM Dataset methods'''
+    def get_printed_line_iam(self, mode="body"):
+        config = self.params["config"]["synthetic_data"]["config"]
+        while True:
+            if config.get("not_synthetic", False):
+
+                #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                sample_index = randint(0, self.line_dataset.__len__()-1)
+                one_line = self.line_dataset.samples[sample_index]
+                text = one_line["label"].translate(str.maketrans("", "", "ⓟⓢⓑⒷⓈⓅ"))
+                line_sample = {
+                            "path": one_line["path"],
+                            "label": text,
+                            "top": one_line["top"],
+                            "bottom": one_line["bottom"],
+                            "left": one_line["left"],
+                            "right": one_line["right"],
+                            "img": one_line["img"],
+                            "nb_cols": 1,
+                            "index": sample_index,
+                        }
+
+                img = self.generate_real_line_image(line_sample)
+                label = text
+
+                # label =             
+                return label, img
+            else:
+                index = randint(0, len(self))
+                sample = self.samples[index] # Random sample from IAM dataset
+                for page in sample["pages_label"]:
+                    paragraphs = list()
+                    paragraphs.extend(page["paragraphs"])
+                    random.shuffle(paragraphs)
+                    for pg in paragraphs:
+                        random.shuffle(pg["lines"])
+                        for line in pg["lines"]:
                             label = line["text"]
                             img = self.generate_typed_text_line_image(label)
                             return label, img
 
+
     def generate_typed_text_line_image(self, text):
         return generate_typed_text_line_image(text, self.params["config"]["synthetic_data"]["config"])
+        
+    
+    def generate_real_line_image(self, sample):
+        config = self.params["config"]["synthetic_data"]["config"]
+        if "img" in sample.keys():
+            img = sample["img"]
+            img = img / 255.0
+        else:
+            img = self.get_image_float(sample["index"])
+        text_height = sample["bottom"] - sample["top"]
+        text_width = sample["right"] - sample["left"]
+        #padding_top = int(rand_uniform(config["padding_top_ratio_min"], config["padding_top_ratio_max"]) * text_height)
+        #padding_bottom = int(rand_uniform(config["padding_bottom_ratio_min"], config["padding_bottom_ratio_max"]) * text_height)
+        #padding_left = int(rand_uniform(config["padding_left_ratio_min"], config["padding_left_ratio_max"]) * text_width)
+        #padding_right = int(rand_uniform(config["padding_right_ratio_min"], config["padding_right_ratio_max"]) * text_width)
+        padding_top = int((config["padding_top_ratio_min"] + config["padding_top_ratio_max"])/2 * text_height)
+        padding_bottom = int((config["padding_bottom_ratio_min"]+ config["padding_bottom_ratio_max"])/2 * text_height)
+        padding_left = int((config["padding_left_ratio_min"]+ config["padding_left_ratio_max"])/2 * text_width)
+        padding_right = int((config["padding_right_ratio_min"]+ config["padding_right_ratio_max"])/2 * text_width)
+        padding = [padding_top, padding_bottom, padding_left, padding_right]
+
+        return generate_real_line_image(img, sample, padding, config["color_mode"])
+
+    def generate_typed_text_paragraph_imageHTR(self, samples, padding_value=255, max_pad_left_ratio=0.1, same_font_size=False):
+        #config = self.params["config"]["synthetic_data"]["config"]
+        #if same_font_size:
+        #    images = list()
+        #    txt_color = config["text_color_default"]
+        #    bg_color = config["background_color_default"]
+        #    font_size = randint(config["font_size_min"], config["font_size_max"] + 1)
+        #    for text in texts:
+        #        font_path = config["valid_fonts"][randint(0, len(config["valid_fonts"]))]
+        #        fnt = ImageFont.truetype(font_path, font_size)
+        #        #text_width, text_height = fnt.getsize(text)
+        #        bbox = fnt.getbbox(text)
+        #        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        #        padding_top = int(rand_uniform(config["padding_top_ratio_min"], config["padding_top_ratio_max"]) * text_height)
+        #        padding_bottom = int(rand_uniform(config["padding_bottom_ratio_min"], config["padding_bottom_ratio_max"]) * text_height)
+        #        padding_left = int(rand_uniform(config["padding_left_ratio_min"], config["padding_left_ratio_max"]) * text_width)
+        #        padding_right = int(rand_uniform(config["padding_right_ratio_min"], config["padding_right_ratio_max"]) * text_width)
+        #        padding = [padding_top, padding_bottom, padding_left, padding_right]
+        #        images.append(generate_typed_text_line_image_from_params(text, fnt, bg_color, txt_color, config["color_mode"], padding))
+        #else:
+        images = [t["image"] for t in samples]
+
+        max_width = max([img.shape[1] for img in images])
+
+        padded_images = [pad_image_width_random(img, max_width, padding_value=padding_value, max_pad_left_ratio=max_pad_left_ratio) for img in images]
+        return np.concatenate(padded_images, axis=0)
 
     def generate_typed_text_paragraph_image(self, texts, padding_value=255, max_pad_left_ratio=0.1, same_font_size=False):
         config = self.params["config"]["synthetic_data"]["config"]
@@ -870,7 +1548,9 @@ class OCRDataset(GenericDataset):
             for text in texts:
                 font_path = config["valid_fonts"][randint(0, len(config["valid_fonts"]))]
                 fnt = ImageFont.truetype(font_path, font_size)
-                text_width, text_height = fnt.getsize(text)
+                #text_width, text_height = fnt.getsize(text)
+                bbox = fnt.getbbox(text)
+                text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
                 padding_top = int(rand_uniform(config["padding_top_ratio_min"], config["padding_top_ratio_max"]) * text_height)
                 padding_bottom = int(rand_uniform(config["padding_bottom_ratio_min"], config["padding_bottom_ratio_max"]) * text_height)
                 padding_left = int(rand_uniform(config["padding_left_ratio_min"], config["padding_left_ratio_max"]) * text_width)
@@ -975,6 +1655,22 @@ class OCRCollateFunction:
 
         return formatted_batch_data
 
+def generate_real_line_image(img, label, padding, color_mode):
+    #self.line_dataset[]
+
+
+    height = label["bottom"] - label["top"] + padding[0] + padding[1]
+    width = label["right"] - label["left"] + padding[2] + padding[3]
+    c = img.shape[2] if len(img.shape) == 3 else 1
+    img = (img - img.min()) / (img.max() - img.min() + 1e-6)
+    background = np.ones((height, width, c), dtype=np.float32)
+    sub_img = img[label["top"]:label["bottom"], label["left"]:label["right"], :]
+    y_offset = (padding[0] + padding[1]) // 2
+    x_offset = (padding[2] + padding[3]) // 2
+    background[y_offset:y_offset+sub_img.shape[0], x_offset:x_offset+sub_img.shape[1]] = sub_img
+    img_uint8 = (background * 255).astype(np.uint8)
+    pil_img = Image.fromarray(img_uint8, color_mode)
+    return np.array(pil_img)
 
 def generate_typed_text_line_image(text, config, bg_color=(255, 255, 255), txt_color=(0, 0, 0)):
     if text == "":
@@ -983,12 +1679,14 @@ def generate_typed_text_line_image(text, config, bg_color=(255, 255, 255), txt_c
         txt_color = config["text_color_default"]
     if "background_color_default" in config:
         bg_color = config["background_color_default"]
-
+    #print(f"Length valid fonts {len(config["valid_fonts"])}")
     font_path = config["valid_fonts"][randint(0, len(config["valid_fonts"]))]
     font_size = randint(config["font_size_min"], config["font_size_max"]+1)
     fnt = ImageFont.truetype(font_path, font_size)
-
-    text_width, text_height = fnt.getsize(text)
+    #print(f"font_path is {font_path}, font_size is {font_size} text is {text}")
+    bbox = fnt.getbbox(text)
+    text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    #text_width, text_height = fnt.getbbox(text) #fnt.getsize(text)
     padding_top = int(rand_uniform(config["padding_top_ratio_min"], config["padding_top_ratio_max"])*text_height)
     padding_bottom = int(rand_uniform(config["padding_bottom_ratio_min"], config["padding_bottom_ratio_max"])*text_height)
     padding_left = int(rand_uniform(config["padding_left_ratio_min"], config["padding_left_ratio_max"])*text_width)
@@ -999,9 +1697,11 @@ def generate_typed_text_line_image(text, config, bg_color=(255, 255, 255), txt_c
 
 def generate_typed_text_line_image_from_params(text, font, bg_color, txt_color, color_mode, padding):
     padding_top, padding_bottom, padding_left, padding_right = padding
-    text_width, text_height = font.getsize(text)
-    img_height = padding_top + padding_bottom + text_height
-    img_width = padding_left + padding_right + text_width
+    bbox = font.getbbox(text)
+    text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
+    #text_width, text_height = font.getsize(text)
+    img_height = max(1, padding_top + padding_bottom + text_height)
+    img_width = max(1, padding_left + padding_right + text_width)
     img = Image.new(color_mode, (img_width, img_height), color=bg_color)
     d = ImageDraw.Draw(img)
     d.text((padding_left, padding_bottom), text, font=font, fill=txt_color, spacing=0)
@@ -1010,9 +1710,10 @@ def generate_typed_text_line_image_from_params(text, font, bg_color, txt_color, 
 
 def get_valid_fonts(alphabet=None):
     valid_fonts = list()
-    for fold_detail in os.walk("../../../Fonts"):
+    for fold_detail in os.walk("./Fonts"):
         if fold_detail[2]:
             for font_name in fold_detail[2]:
+                
                 if ".ttf" not in font_name:
                     continue
                 font_path = os.path.join(fold_detail[0], font_name)
@@ -1023,8 +1724,10 @@ def get_valid_fonts(alphabet=None):
                             to_add = False
                             break
                     if to_add:
+                        print(f"font_name is {font_name}")
                         valid_fonts.append(font_path)
                 else:
+                    print(f"font_name is {font_name}")
                     valid_fonts.append(font_path)
     return valid_fonts
 

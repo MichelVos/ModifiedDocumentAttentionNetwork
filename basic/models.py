@@ -3,8 +3,8 @@
 #  contributors :
 #  - Denis Coquenet
 #
-#
-#  This software is a computer program written in XXX whose purpose is XXX.
+#  This software is a computer program written in Python whose purpose is 
+#  to recognize text and layout from full-page images with end-to-end deep neural networks.
 #
 #  This software is governed by the CeCILL-C license under French law and
 #  abiding by the rules of distribution of free software.  You can  use,
@@ -33,13 +33,189 @@
 #  knowledge of the CeCILL-C license and that you accept its terms.
 
 
-from torch.nn import Module, ModuleList
-from torch.nn import Conv2d
+import torch
+from torch.nn import Module, ModuleList, Sequential
+from torch.nn import Conv2d, BatchNorm2d, MaxPool2d
 from torch.nn import InstanceNorm2d
 from torch.nn import Dropout, Dropout2d
 from torch.nn import ReLU
 from torch.nn.functional import pad
+import torch.nn as nn
+import torch.nn.functional as F
+import torchvision.models as models
 import random
+
+
+import torchvision.models as models
+import torch.nn as nn
+
+class ResNet18CTC(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+
+        out_channels = params["hidden_size"]
+        vocab_size = params["vocab_size"]
+
+        resnet = models.resnet18(weights=None)
+
+        # --- standard ResNet18 backbone (unmodified) ---
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            resnet.maxpool,
+            resnet.layer1,
+            resnet.layer2,
+            resnet.layer3,
+            resnet.layer4,
+        )
+
+        # project channels
+        self.proj = nn.Conv2d(512, out_channels, kernel_size=1)
+
+        # collapse height → sequence
+        self.pool = nn.AdaptiveAvgPool2d((1, None))
+
+        # CTC classifier
+        self.classifier = nn.Conv1d(out_channels, vocab_size + 1, kernel_size=1)
+
+    def forward(self, x):
+        x = self.features(x)        # [B, 512, H, W]
+        x = self.proj(x)            # [B, C, H, W]
+        #x = self.pool(x)            # [B, C, 1, W]
+        #x = x.squeeze(2)            # [B, C, W]
+        #x = self.classifier(x)      # [B, vocab+1, W]
+        #x = F.log_softmax(x, dim=1)
+        return x
+
+class ResNet18CTC_old(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+        out_channels = params["hidden_size"] 
+        resnet = models.resnet18(pretrained=False)
+        
+        # --- modify for line images ---
+        resnet.conv1.stride = (1, 1)   # keep resolution
+        # remove maxpool to avoid too much downsampling
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            # no maxpool
+            resnet.layer1,  # 64
+            resnet.layer2,  # 128
+            resnet.layer3,  # 256
+            resnet.layer4,  # 512
+        )
+        
+        # collapse height → sequence
+        self.proj = nn.Conv2d(512, out_channels, kernel_size=1)
+
+        
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.proj(x)
+        return x
+
+class ResNetEncoder(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+
+        out_channels=params.get("hidden_size", 256)
+
+        resnet = models.resnet50(pretrained=False)
+
+        resnet.conv1.stride = (1, 1)
+
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            # no maxpool
+            resnet.layer1,
+            resnet.layer2,
+            resnet.layer3,
+            resnet.layer4,
+        )
+
+        self.proj = nn.Conv2d(2048, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.proj(x)
+        return x
+
+class SeqCLREncoder2(Module):
+    def __init__(self, params):
+        in_channels = params["input_channels"]
+        hidden = params["hidden_size"]
+        super().__init__()
+        self.encoder = Sequential(
+            # Stage 1
+            Conv2d(in_channels, 32, 3, stride=2, padding=1),  # H/2 W/2
+            InstanceNorm2d(32, affine=True),
+            ReLU(),
+
+            # Stage 2
+            Conv2d(32, 64, 3, stride=2, padding=1),           # H/4 W/4
+            InstanceNorm2d(64, affine=True),
+            ReLU(),
+
+            # Stage 3 (keep width!)
+            Conv2d(64, 128, 3, stride=(2,1), padding=1),      # H/8 W/4
+            InstanceNorm2d(128, affine=True),
+            ReLU(),
+
+            # Deeper context
+            Conv2d(128, hidden, 3, padding=1),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+
+            Conv2d(hidden, hidden, (3,5), padding=(1,2)),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+
+            Conv2d(hidden, hidden, (3,5), padding=(1,2)),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+        )
+    def forward(self, x):
+        # x: (B, C, H, W)
+        x = self.encoder(x)  # (B, C, H', W')
+        return x
+
+
+class SeqCLREncoder(Module):
+    def __init__(self, params):
+        in_channels = params["input_channels"]
+        hidden = params["hidden_size"]
+        super().__init__()
+        self.encoder = Sequential(
+            # (H, W)
+            Conv2d(in_channels, 32, 3, padding=1),
+            BatchNorm2d(32),
+            ReLU(),
+            MaxPool2d((2, 2)),   # H/2, W/2
+
+            Conv2d(32, 64, 3, padding=1),
+            BatchNorm2d(64),
+            ReLU(),
+            MaxPool2d((2, 2)),   # H/4, W/4
+
+            Conv2d(64, 128, 3, padding=1),
+            BatchNorm2d(128),
+            ReLU(),
+            MaxPool2d((2, 1)),   # H/8, W/4  (important: keep width!)
+
+            Conv2d(128, hidden, 3, padding=1),
+            BatchNorm2d(hidden),
+            ReLU(),
+        )
+    def forward(self, x):
+        # x: (B, C, H, W)
+        x = self.encoder(x)  # (B, C, H', W')
+        return x
 
 
 class DepthSepConv2D(Module):
@@ -85,6 +261,70 @@ class MixDropout(Module):
             return self.dropout(x)
         return self.dropout2d(x)
 
+class FCN_Encoder_Tiny(Module):
+    def __init__(self, params):
+        super().__init__()
+        self.dropout = params["dropout"]
+
+        self.init_blocks = ModuleList([
+            ConvBlock(params["input_channels"], 4,  stride=(1, 1), dropout=self.dropout),
+            ConvBlock(4, 8,  stride=(2, 2), dropout=self.dropout),
+            ConvBlock(8, 16, stride=(2, 2), dropout=self.dropout),
+            ConvBlock(16, 32, stride=(1, 2), dropout=self.dropout),
+            ConvBlock(32, 32, stride=(1, 1), dropout=self.dropout),
+            ConvBlock(32, 32, stride=(1, 1), dropout=self.dropout),
+        ])
+
+        self.blocks = ModuleList([
+            DSCBlock(32, 32, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(32, 32, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(32, 32, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(32, 64, stride=(1, 1), dropout=self.dropout),
+        ])
+    def forward(self, x):
+        #with torch.no_grad():
+        #    assert torch.isfinite(x).all(), f"Input has non-finite values: min {x.min()} max {x.max()}"
+        #    print("x stats:", float(x.min()), float(x.mean()), float(x.max()))
+        for b in self.init_blocks:
+            x = b(x)
+        for b in self.blocks:
+            xt = b(x)
+            x = x + xt if x.size() == xt.size() else xt
+        return x
+
+class FCN_Encoder_Small(Module):
+    def __init__(self, params):
+        super(FCN_Encoder_Small, self).__init__()
+
+        self.dropout = params["dropout"]
+
+        self.init_blocks = ModuleList([
+            ConvBlock(params["input_channels"], 8, stride=(1, 1), dropout=self.dropout),
+            ConvBlock(8, 16, stride=(2, 2), dropout=self.dropout),
+            ConvBlock(16, 32, stride=(2, 2), dropout=self.dropout),
+            ConvBlock(32, 64, stride=(1, 2), dropout=self.dropout),
+            ConvBlock(64, 64, stride=(1, 1), dropout=self.dropout),
+            ConvBlock(64, 64, stride=(1, 1), dropout=self.dropout),
+        ])
+
+        self.blocks = ModuleList([
+            DSCBlock(64, 64, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(64, 64, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(64, 64, stride=(1, 1), dropout=self.dropout),
+            DSCBlock(64, 128, stride=(1, 1), dropout=self.dropout),
+        ])
+
+    def forward(self, x):
+        #with torch.no_grad():
+        #    assert torch.isfinite(x).all(), f"Input has non-finite values: min {x.min()} max {x.max()}"
+        #    print("x stats:", float(x.min()), float(x.mean()), float(x.max()))
+        for b in self.init_blocks:
+            x = b(x)
+        for b in self.blocks:
+            xt = b(x)
+            x = x + xt if x.size() == xt.size() else xt
+        return x
+
 
 class FCN_Encoder(Module):
     def __init__(self, params):
@@ -108,6 +348,10 @@ class FCN_Encoder(Module):
         ])
 
     def forward(self, x):
+        # x.shape=BxCxHxW
+        #with torch.no_grad():
+        #    assert torch.isfinite(x).all(), f"Input has non-finite values: min {x.min()} max {x.max()}"
+        #    print("x stats:", float(x.min()), float(x.mean()), float(x.max()))
         for b in self.init_blocks:
             x = b(x)
         for b in self.blocks:
