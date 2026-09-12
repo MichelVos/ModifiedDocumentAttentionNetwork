@@ -1,4 +1,4 @@
-#  Copyright Open Univereiteit Nederland 2025
+#  Copyright Open Universiteit Nederland 2025
 #  contributors :
 #  - Michel Vos
 #
