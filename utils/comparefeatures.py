@@ -10,7 +10,7 @@ sys.path.append(os.path.dirname(DOSSIER_PARENT))
 
 
 from torch.utils.data import DataLoader
-from OCR.document_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines
+from OCR.line_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines
 #from Dataset import TwoViewWrapper, default_doc_augment, DocFolder
 from basic.models import FCN_Encoder
 import math
@@ -34,7 +34,7 @@ from Dataset import DocFolder
 
 
 dataset = DocFolder(
-    root_dir="/home/michel/dev/python/formatted/IAM_non_syn_line/train",
+    root_dir="${HOME}/dev/python/formatted/IAM_non_syn_line/train",
     transform=None,
     augmentations=None,
     line_size=(1232, 64),
@@ -45,7 +45,7 @@ dataset = DocFolder(
 
 
 
-#img=Image.open("/home/michel/Labour.jpeg").convert("RGB")
+#img=Image.open("${HOME}/Labour.jpeg").convert("RGB")
 #transform = torchvision.transforms.Compose([
 #    torchvision.transforms.ToTensor(),
 #])
@@ -73,18 +73,18 @@ supervised_encoder = FCN_Encoder({
 
 
 checkpoint_ssl = torch.load(
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch200.pth",
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
-        "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch200.pth",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
+        "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt",
         map_location="cpu",
         weights_only=False
     )
 
 checkpoint_supervised = torch.load(
-        #"/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
-        "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_10PercSamples/checkpoints/best_96.pt",
+        #"${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+        "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_10PercSamples/checkpoints/best_96.pt",
         map_location="cpu",
         weights_only=False
     )

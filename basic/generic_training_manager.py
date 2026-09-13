@@ -112,7 +112,6 @@ class GenericTrainingManager:
             self.load_dataset()
 
         if "line_dataset_params" in self.params["dataset_params"] and self.params["dataset_params"]["line_dataset_params"] is not None:
-            #self.dataset.train_dataset.line_dataset = DocFolder(self.params["dataset_params"]["line_dataset_params"])
             self.dataset.train_dataset.line_dataset = DocFolder(self.params["dataset_params"])
         else:
             self.dataset.train_dataset.line_dataset = None
@@ -298,7 +297,7 @@ class GenericTrainingManager:
                 print(f"Full path of path = {os.path.abspath(path)}")
 
                 # the file is best_xxx.pt the correct name must be found by getting the path without name and fetching the best_xx.pt filename
-                #path = "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best.pt"
+                #path = "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best.pt"
                 directory = os.path.dirname(path)
                 # Find all files starting with 'best' and ending with '.pt'
                 best_files = glob.glob(os.path.join(directory, "best*.pt"))
@@ -805,26 +804,6 @@ class GenericTrainingManager:
                     self.freeze_by_prefixes(self.models["encoder"], freeze_prefixes)
                     self.reset_optimizer("encoder")
                     frozen = True
-                '''
-                self.set_learnable_by_prefixes(
-                    self.models["encoder"],
-                    freeze_prefixes,
-                    learnable=False
-                )
-                #self.set_bn_eval_for_prefixes(self.models["encoder"],freeze_prefixes)
-                self.set_mode_by_prefixes(
-                    self.models["encoder"], 
-                    freeze_prefixes,
-                    train=False
-                )
-            else:
-                self.set_model_learnable(self.models["encoder"], True)
-                self.set_mode_by_prefixes(
-                    self.models["encoder"], 
-                    freeze_prefixes,
-                    train=True
-                )
-                '''
 
             else:
                 if frozen:
@@ -856,58 +835,16 @@ class GenericTrainingManager:
                 self.dataset.train_dataset.curriculum_config["epoch"] = self.latest_epoch
             # init epoch metrics values
             self.metric_manager["train"] = MetricManager(metric_names=metric_names, dataset_name=self.dataset_name)
-            #for name, module in self.models["encoder"].named_modules():
-            #    if isinstance(module, torch.nn.BatchNorm2d):
-            #        print(name, module.training)
-            #for name, module in self.models["encoder"].named_modules():
-            #    print(f"{os.name}: training={module.training}")                    
-            #for name, param in self.models["encoder"].named_parameters():
-            #    print(os.name, param.requires_grad)
-            #encoder = self.models["encoder"]
-
-            #print("TYPE:", type(encoder))
-            #print("REPR:", encoder)                
             with tqdm(total=len(self.dataset.train_loader.dataset)) as pbar:
                 pbar.set_description("EPOCH {}/{}".format(num_epoch, nb_epochs))
                 # iterates over mini-batch data
-                '''
-                save_dir = "debug_batches"
-                os.makedirs(save_dir, exist_ok=True)
-                '''
 
-                '''
-                for i, batch in enumerate(self.dataset.train_loader):
-                    with torch.no_grad():
-                        out = self.models["encoder"](batch)
-                        loss = criterion(...)
-                        if not torch.isfinite(loss):
-                            print("Bad batch:", i)
-                            # print paths / labels / lengths here
-                            break
-                '''
                 for ind_batch, batch_data in enumerate(self.dataset.train_loader):
-
-
-                    
                     self.latest_batch = ind_batch + 1
                     self.total_batch += 1
                     # train on batch data and compute metrics
                     #with timer("train_batch"):
-                    '''
-                    imgs = batch_data["imgs"]
 
-                    # save first 8 images as a grid
-                    vutils.save_image(
-                        imgs[:8],
-                        os.path.join(save_dir, f"batch_{ind_batch}.png"),
-                        nrow=4,
-                        normalize=True,
-                        value_range=(0, 1)
-                    )
-
-                    if ind_batch >= 2:  # limit to first 3 batches
-                        break
-                    '''
 
                     batch_values = self.train_batch(batch_data, metric_names)
                     #with timer("compute_metrics"):
@@ -964,9 +901,6 @@ class GenericTrainingManager:
                 self.writer.add_scalar('grad_norm/encoder', grad_norm_encoder, num_epoch)
                 self.writer.add_scalar('grad_norm/decoder', grad_norm_decoder, num_epoch)
                 self.writer.add_scalar('grad_norm/ratio', ratio, num_epoch)
-                #self.writer.add_scalar('learning_rate/encoder', self.optimizers["encoder"].param_groups[0]["lr"], num_epoch)
-                #self.writer.add_scalar('learning_rate/encoder_params', self.params["training_params"]["optimizers"]["encoder"]["args"]["lr"], num_epoch)
-                #self.writer.add_scalar('learning_rate/decoder', self.optimizers["decoder"].param_groups[0]["lr"], num_epoch)
 
             self.latest_train_metrics = display_values
 
@@ -1032,21 +966,6 @@ class GenericTrainingManager:
                 number_of_batches = len(loader)
                 batch_count = 0
 
-                '''
-                for i, batch in enumerate(self.dataset.train_loader):
-                    with torch.no_grad():
-                        y = batch["labels"]
-                        x_reduced_len = [s[1] for s in batch["imgs_reduced_shape"]]
-                        y_len = batch["labels_len"]
-                        out = self.models["encoder"](batch)
-                        global_pred = self.models["decoder"](out)
-                        loss = loss_ctc(global_pred.permute(2, 0, 1), y, x_reduced_len, y_len)
-                        #loss = criterion(...)
-                        if not torch.isfinite(loss):
-                            print("Bad batch:", i)
-                            # print paths / labels / lengths here
-                            break
-                '''
 
                 for ind_batch, batch_data in enumerate(loader):
                     self.latest_batch = ind_batch + 1

@@ -118,7 +118,7 @@ params = {
             }
         },
         "line_dataset_params": {
-           "path": "/home/michel/dev/python/formatted/READ_2016_non_syn_line",
+           "path": "${HOME}/dev/python/formatted/READ_2016_non_syn_line",
         },
     },
 
@@ -131,8 +131,8 @@ params = {
         # "transfer_learning": None,
         "transfer_learning": {
             # model_name: [state_dict_name, checkpoint_path, learnable, strict]
-            #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/FCN_READ_100/checkpoints/best.pt", True, True],
-            "encoder": ["encoder", "/home/michel/dev/python/SparK/BAUTZEN_RD_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+            #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/FCN_READ_100/checkpoints/best.pt", True, True],
+            "encoder": ["encoder", "${HOME}/dev/python/SparK/BAUTZEN_RD_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
         },
         "transfered_charset": True,  # Transfer learning of the decision layer based on charset of the line HTR model
         "additional_tokens": 1,  # for decision layer = [<eot>, ], only for transfered charset

@@ -41,4 +41,4 @@ def calculate_average_image_dimensions(directory):
     print(f"Min width: {min_width}, Min height: {min_height}")
 
 # Example usage:
-calculate_average_image_dimensions('/home/michel/dev/python/formatted/IAM_non_syn_line/train')   
+calculate_average_image_dimensions('${HOME}/dev/python/formatted/IAM_non_syn_line/train')   

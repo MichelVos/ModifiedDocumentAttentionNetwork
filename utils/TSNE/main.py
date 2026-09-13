@@ -123,14 +123,14 @@ params = {
         },
     },
     "paths":{
-        "page_files":"/home/michel/dev/python/formatted/IAM_page",
-        "line_files":"/home/michel/dev/python/formatted/IAM_non_syn_line",
+        "page_files":"${HOME}/dev/python/formatted/IAM_page",
+        "line_files":"${HOME}/dev/python/formatted/IAM_non_syn_line",
     },
 }
 
 if __name__ == "__main__":
-    imagesPath = "/home/michel/dev/python/raw/IAM/words"
-    metadata = "/home/michel/dev/python/DAN/utils/TSNE/words.txt"
+    imagesPath = "${HOME}/dev/python/raw/IAM/words"
+    metadata = "${HOME}/dev/python/DAN/utils/TSNE/words.txt"
     top_n = 10
     samples_per_n = 10
     standard = True
@@ -144,25 +144,27 @@ if __name__ == "__main__":
     if init:
         print("init:")
         checkpoint = torch.load(
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch200.pth",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            "/home/michel/dev/python/SparK/IAM_line_25perc_random/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch200.pth",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            "${HOME}/dev/python/SparK/IAM_line_25perc_random/best.pt",
             map_location="cpu",
             weights_only=False
         )
+        incompatibleKeys = []
         if "encoder_state_dict" in checkpoint:
-            encoder.load_state_dict(checkpoint["encoder_state_dict"])
+            incompatibleKeys =encoder.load_state_dict(checkpoint["encoder_state_dict"])
         else:
-            encoder.load_state_dict(checkpoint)
+            incompatibleKeys =encoder.load_state_dict(checkpoint)
+        print(f"incompatible keys: {incompatibleKeys}")
     w = next(encoder.parameters()).detach().cpu()
     print(f"mean is {w.mean()}, std={w.std()}")
 

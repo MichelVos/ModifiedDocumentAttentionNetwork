@@ -1,10 +1,10 @@
 from tensorboard.backend.event_processing import event_accumulator
 
-event_path = "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_contrastive_line/results"
-event_path = "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_contrastive_line_scale/results"
-event_path = "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_contrastive_equal/results"
-event_path = "/home/michel/dev/python/DAN/outputs/IAM_contrastive_equal/results"
-event_path = "/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly/results"
+event_path = "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_contrastive_line/results"
+event_path = "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_contrastive_line_scale/results"
+event_path = "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_contrastive_equal/results"
+event_path = "${HOME}/dev/python/DAN/outputs/IAM_contrastive_equal/results"
+event_path = "${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly/results"
 
 ea = event_accumulator.EventAccumulator(event_path)
 ea.Reload()  # Load the data

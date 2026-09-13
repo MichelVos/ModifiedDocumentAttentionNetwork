@@ -1,8 +1,8 @@
 import torch
+import os
 
-ssl = torch.load("/home/michel/tmp/IAM_contrastive/simclr_epoch101.pth", map_location="cpu")
-#ssl = torch.load("/home/michel/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/last_216.pt", map_location="cpu", weights_only=False)
-sup = torch.load("/home/michel/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best_202.pt", map_location="cpu", weights_only=False)
+ssl = torch.load(os.path.expandvars("${HOME}/tmp/IAM_contrastive/simclr_epoch101.pth"), map_location="cpu")
+sup = torch.load(os.path.expandvars("${HOME}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best_202.pt"), map_location="cpu", weights_only=False)
 
 # If they have a "state_dict"
 ssl_sd = ssl["encoder_state_dict"] if "encoder_state_dict" in ssl else ssl

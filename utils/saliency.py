@@ -81,7 +81,7 @@ class GradCAM:
 
         return cam
 
-img=Image.open("/home/michel/Labour.jpeg").convert("RGB")
+img=Image.open("${HOME}/Labour.jpeg").convert("RGB")
 transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
 ])
@@ -94,16 +94,16 @@ model = FCN_Encoder({
 })
 if True:
     checkpoint = torch.load(
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
-        #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
-        "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
+        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
+        "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt",
         map_location="cpu",
         weights_only=False
     )
 else:
     checkpoint = torch.load(
-        "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+        "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
         map_location="cpu",
         weights_only=False
     )

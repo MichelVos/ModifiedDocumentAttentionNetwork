@@ -97,6 +97,9 @@ def expand_manifest_entries(entries: List[dict], recursive: bool) -> List[tuple]
     out = []
     for e in entries:
         p = e["path"]
+        # check if path p exists
+        if not os.path.exists(p):
+            logging.warning("Manifest entry path does not exist: %s", p)
         label = e.get("label")
         description = e.get("description")
         found = find_event_files([p], recursive=recursive)
@@ -244,6 +247,8 @@ def main() -> None:
         labels = [t[1] for t in expanded]
         descriptions = [t[2] for t in expanded]
         logging.info("Found %d event files from manifest entries", len(event_files))
+        for idx, ef in enumerate(event_files):
+            logging.info("  %d: %s (label: %s, description: %s)", idx + 1, ef, labels[idx], descriptions[idx])
     else:
         logging.info("Discovering event files in: %s", args.paths)
         event_files = find_event_files(args.paths, recursive=args.recursive)
@@ -285,4 +290,21 @@ def main() -> None:
 if __name__ == "__main__":
     main()
 
-# Example: python3 tb_to_csv.py --manifest pathsMIM.json --tag "IAM-valid_cer" --wide --output validation_loss_by_MIM.csv
+# Example: python3 tb_to_csv.py --manifest paths.MIM.json --tag "READ_2016-valid_cer" --wide --output validation_loss_MIM.csv
+# python3 tb_to_csv.py --manifest IAM_Contrastive_15.json --tag "IAM-valid_cer" --wide --output IAM_Contrastive_15.csv
+# python3 tb_to_csv.py --manifest READ_Contrastive_15.json --tag "READ_2016-valid_cer" --wide --output READ_Contrastive_15.csv
+# python3 tb_to_csv.py --manifest RIMES_Contrastive_15.json --tag "RIMES-valid_cer" --wide --output RIMES_Contrastive_15.csv
+# python3 tb_to_csv.py --manifest IAM_MIM.json --tag "IAM-valid_cer" --wide --output IAM_MIM.csv
+# python3 tb_to_csv.py --manifest READ_perc_masking_ablation.json --tag "READ_2016-valid_cer" --wide --output READ_perc_masking_ablation.csv
+# python3 tb_to_csv.py --manifest READ_MIM_patterns.json --tag "READ_2016-valid_cer" --wide --output READ_MIM_patterns.csv
+# python3 tb_to_csv.py --manifest RIMESCROSS.json --tag "RIMES-valid_cer" --wide --output RIMESCROSS.csv
+# python3 tb_to_csv.py --manifest IAMCROSS.json --tag "IAM-valid_cer" --wide --output IAMCROSS.csv
+# python3 tb_to_csv.py --manifest READCROSS.json --tag "READ_2016-valid_cer" --wide --output READCROSS.csv
+# python3 tb_to_csv.py --manifest READSMALL.json --tag "READ_2016-valid_cer" --wide --output READSMALL.csv
+# python3 tb_to_csv.py --manifest IAMSMALL.json --tag "IAM-valid_cer" --wide --output IAMSMALL.csv
+# python3 tb_to_csv.py --manifest READBAUTZEN.json --tag "READ_2016-valid_cer" --wide --output READBAUTZEN.csv
+# python3 tb_to_csv.py --manifest IAM_MIM_CONTR.json --tag "IAM-valid_cer" --wide --output IAM_MIM_CONTR.csv
+
+# python3 tb_to_csv.py --manifest READ_MIM_CONTR.json --tag "READ_2016-valid_cer" --wide --output READ_MIM_CONTR.csv
+# python3 tb_to_csv.py --manifest READSMALLER.json --tag "READ_2016-valid_cer" --wide --output READSMALLER.csv
+# python3 tb_to_csv.py --manifest IAMSMALLER.json --tag "IAM-valid_cer" --wide --output IAMSMALLER.csv

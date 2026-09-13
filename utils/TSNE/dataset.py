@@ -323,8 +323,8 @@ class words(Dataset):
     
 
 if __name__ == "__main__":
-    imagesPath = "/home/michel/dev/python/raw/IAM/words"
-    metadata = "/home/michel/dev/python/DAN/utils/TSNE/words.txt"
+    imagesPath = "${HOME}/dev/python/raw/IAM/words"
+    metadata = "${HOME}/dev/python/DAN/utils/TSNE/words.txt"
     dataset = words(None, imagesPath, metadata)
 
     for i in range(10):

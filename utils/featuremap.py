@@ -10,7 +10,7 @@ from torchviz import make_dot
 
 
 from torch.utils.data import DataLoader
-from OCR.document_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines
+from OCR.line_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines
 #from Dataset import TwoViewWrapper, default_doc_augment, DocFolder
 from basic.models import FCN_Encoder
 import math
@@ -40,8 +40,8 @@ activations = {}
 load image.
 Image is converted to RGB if needed, then to tensor and normalized to [0,1]
 '''
-#img=Image.open("/home/michel/dev/python/formatted/IAM_non_syn_line/train/train_0.jpeg").convert("RGB")
-img=Image.open("/home/michel/Labour.jpeg").convert("RGB")
+#img=Image.open("${HOME}/dev/python/formatted/IAM_non_syn_line/train/train_0.jpeg").convert("RGB")
+img=Image.open("${HOME}/Labour.jpeg").convert("RGB")
 transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
 ])
@@ -66,13 +66,13 @@ make_dot(y).render("fcn_encoder_graph", format="png")
 
 if True:
     checkpoint = torch.load(
-        "/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+        "${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
         map_location="cpu",
         weights_only=False
     )
 else:
     checkpoint = torch.load(
-        "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+        "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
         map_location="cpu",
         weights_only=False
     )

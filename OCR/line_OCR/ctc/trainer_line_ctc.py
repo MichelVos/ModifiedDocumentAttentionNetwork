@@ -299,22 +299,10 @@ class TrainerLineCTC(OCRManager):
         loss_ctc = CTCLoss(blank=self.dataset.tokens["blank"], zero_infinity=True)
 
         start_time = time.time()
-        '''
-        with torch.no_grad():
-            out = self.models["encoder"](x)
-            print("out finite:", torch.isfinite(out).all().item())
-            print("out min/max:", out.min().item(), out.max().item())
-
-            log_probs = torch.nn.functional.log_softmax(out, dim=1)
-            print("log_probs finite:", torch.isfinite(log_probs).all().item())
-            print("log_probs min/max:", log_probs.min().item(), log_probs.max().item())
-        '''
         with autocast('cuda', enabled=self.params["training_params"]["use_amp"]):
             x = self.models["encoder"](x)
             global_pred = self.models["decoder"](x)
         # expects T, B, C  receives  B  C  T
-
-
         loss = loss_ctc(global_pred.permute(2, 0, 1), y, x_reduced_len, y_len)
         pred = torch.argmax(global_pred, dim=1).cpu().numpy()
         str_x = self.pred_to_str(pred, x_reduced_len)

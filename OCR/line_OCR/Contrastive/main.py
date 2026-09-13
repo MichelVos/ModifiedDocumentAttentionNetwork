@@ -7,7 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(DOSSIER_PARENT)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(DOSSIER_PARENT))))
 
 from torch.utils.data import DataLoader
-from OCR.document_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines, aug_lines_weak, aug_view_a, aug_view_b
+from OCR.line_OCR.Contrastive.Dataset import TwoViewWrapper, default_doc_augment, DocFolder, aug_lines, aug_lines_weak, aug_view_a, aug_view_b
 #from Dataset import TwoViewWrapper, default_doc_augment, DocFolder
 from basic.models import FCN_Encoder
 import math
@@ -477,8 +477,8 @@ params = {
         "proj_dim": 128,
         "tau": 0.2,
     },
-    #"preload": "/home/michel/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt",
-    "preload": "/home/michel/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt",
+    # Use preload to preload the encoder with weights
+    "preload": "${HOME}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt",
     "training_params":{
         "batch_size_line": 64,
         "batch_size_page": 8,
@@ -518,8 +518,8 @@ params = {
         },
     },
     "paths":{
-        "page_files":"/home/michel/dev/python/formatted/READ_2016_page",
-        "line_files":"/home/michel/dev/python/formatted/READ_2016_non_syn_line",
+        "page_files":"${HOME}/dev/python/formatted/READ_2016_page",
+        "line_files":"${HOME}/dev/python/formatted/READ_2016_non_syn_line",
     },
 }
 
@@ -693,22 +693,11 @@ def Train():
                             #print("BASE mean/std/max:", x.mean().item(), x.std().item(), x.abs().max().item())
 
 
-                #loss.backward()
                 scaler.scale(loss).backward()
                 scaler.unscale_(opt)
-                #model.parameters().isinf().any()
-                #grad_norm = torch.nn.utils.clip_grad_norm_(
-                #    model.parameters(), max_norm=1e9
-                #).item()
-                #grad_norm = clip_grad_norm_(
-                #    model.parameters(), max_norm=1e9
-                #).item()
-                #grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1e9).item()
-                #opt.step()
                 scaler.step(opt)
                 scaler.update()
                 loss_vals.append(loss.item())
-                #grad_norms.append(grad_norm)
 
                 z1, z2 = out["z1"].detach(), out["z2"].detach()  # (B, D)
                 if "pos_sim" in out: pos_sims.append(out["pos_sim"].detach().mean().item())
@@ -718,12 +707,6 @@ def Train():
 
                 zn = torch.nn.functional.normalize(emb, dim=1)
                 cov = (zn.T @ zn) / zn.size(0)
-                '''
-                eigvals = torch.linalg.eigvalsh(cov).clamp_min(1e-12)
-                var_mins.append(eigvals.min().item())
-                var_means.append(eigvals.mean().item())
-                var_maxs.append(eigvals.max().item())
-                '''
             epoch_time = time.time() - t0
             step = epoch + 1
             print(f"\rEpoch {epoch+1} done in {epoch_time:.1f}s, loss {sum(loss_vals)/len(loss_vals):.4f}")
@@ -731,20 +714,14 @@ def Train():
             writer.add_scalar("train/loss_std", torch.tensor(loss_vals).std().item(), step)
             writer.add_scalar("opt/lr", opt.param_groups[0]["lr"], step)
             writer.add_scalar("time/epoch_seconds", epoch_time, step)
-            #writer.add_scalar("grad/global_norm_mean", sum(grad_norms)/len(grad_norms), step)
 
             if pos_sims:
                 writer.add_scalar("repr/pos_cosine_mean", sum(pos_sims)/len(pos_sims), step)
             if neg_sims:
                 writer.add_scalar("repr/neg_cosine_mean", sum(neg_sims)/len(neg_sims), step)
             writer.add_scalar("repr/emb_norm_mean", sum(emb_norms)/len(emb_norms), step)
-            #writer.add_scalar("collapse/eig_min_mean", sum(var_mins)/len(var_mins), step)
-            #writer.add_scalar("collapse/eig_mean_mean", sum(var_means)/len(var_means), step)
-            #writer.add_scalar("collapse/eig_max_mean", sum(var_maxs)/len(var_maxs), step)
 
             # histogram snapshots once in a while
-            #if step % 5 == 0:
-            #    writer.add_histogram("repr/eigvals", eigvals.cpu(), step)
 
             torch.save({
                 "epoch": epoch,

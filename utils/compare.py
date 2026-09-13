@@ -1,7 +1,7 @@
 import torch
 
-file1 = "/home/michel/dev/python/DAN/outputs/FCN_IAM_MIMpage50perc_L1_random/checkpoints/best_8.pt"
-file2 = "/home/michel/dev/python/DAN/outputs/FCN_IAM_MIMpage50perc_L1_random/checkpoints/last_9.pt"
+file1 = "${HOME}/dev/python/DAN/outputs/FCN_IAM_MIMpage50perc_L1_random/checkpoints/best_8.pt"
+file2 = "${HOME}/dev/python/DAN/outputs/FCN_IAM_MIMpage50perc_L1_random/checkpoints/last_9.pt"
 
 w1 = torch.load(file1, map_location="cpu", weights_only=False)
 w2 = torch.load(file2, map_location="cpu", weights_only=False)

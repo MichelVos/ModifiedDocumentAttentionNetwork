@@ -2,18 +2,19 @@ import os
 from PIL import Image
 import numpy as np
 import io
+import webdataset as wds
 import cv2
 
 
-training_set = 'valid'
-input_dir = f"/home/michel/dev/python/formatted/RIMES_page/{training_set}"
-output_dir = f"/home/michel/dev/python/formatted/RIMES_page_224/{training_set}"
+
+input_dir = "${HOME}/dev/python/Bautzen/jpg.raw"
+output_dir = "${HOME}/dev/python/Bautzen/jpg.raw.shards"
 patch_size = 224
 
 os.makedirs(output_dir, exist_ok=True)
 
 # create shard writer (10k samples per shard)
-
+sink = wds.ShardWriter(os.path.join(output_dir, "shard-%06d.tar"), maxcount=10000)
 
 filecount = 0
 
@@ -86,13 +87,17 @@ for root, dirs, files in os.walk(input_dir):
                 patch.save(buffer, format="JPEG")
                 img_bytes = buffer.getvalue()
 
-                filename = f"{output_dir}/{filecount:07d}_{count:05d}.jpg"
-                with open(filename, "wb") as f:
-                    f.write(img_bytes)
+                key = f"{filecount:07d}_{count:05d}"
 
+                sink.write({
+                    "__key__": key,
+                    "jpg": img_bytes,
+                })
 
                 count += 1
 
         print(f"File {filecount}: {rawCount} raw patches, {count} accepted patches")
 
         filecount += 1
+
+sink.close()

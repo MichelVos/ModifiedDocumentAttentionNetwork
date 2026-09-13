@@ -196,30 +196,30 @@ def main():
                 #"encoder": ["encoder", "outputs/IAM_SSL_Linestrips/best.pt", True, True],
                 #decoder": ["decoder", "outputs/IAM_SSL_Linestrips/best.pt", True, False],
                 #"encoder": ["encoder", "outputs/IAM_contrastive_lineonly_scale/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs64_newaug_tau01/best.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs64_newaug_tau01/best.pt", True, True],
                 #"decoder": ["decoder", "outputs/IAM_contrastive_equal/best.pt", True, False],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR8.2/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR9/best.pt", True, False],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR8.2/best.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR9/best.pt", True, False],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt", True, True],
                 #"encoder" : ["encoder", "/data2/backup20260104/IAM_contrastive_equal/best.pt", True, True],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",True, True],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",True, True],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",True, True],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR16/simclr_epoch17.pth", True, True],
-                #"encoder" : ["encoder", "/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_128x1232_32x8_60perc_random/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_128x1232_32x8_25perc_random/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_line_25perc_random/best.pt", True, True],
-                #"decoder": ["decoder", "/home/michel/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
-                #"decoder": ["decoder", "/home/michel/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/DAN/outputs_seed/RIMES_contrastive_seed_3/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/RIMES_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
-                #"encoder" : ["encoder",  "/home/michel/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
-                #"encoder": ["encoder", "/home/michel/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt", True, True],
-                "encoder": ["encoder", "/home/michel/dev/python/SparK/RIMES_200epochs_lr_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",True, True],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",True, True],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",True, True],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR16/simclr_epoch17.pth", True, True],
+                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_128x1232_32x8_60perc_random/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_128x1232_32x8_25perc_random/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_25perc_random/best.pt", True, True],
+                #"decoder": ["decoder", "${HOME}/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
+                #"decoder": ["decoder", "${HOME}/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/DAN/outputs_seed/RIMES_contrastive_seed_3/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/RIMES_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder": ["encoder", "${HOME}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt", True, True],
+                "encoder": ["encoder", "${HOME}/dev/python/SparK/RIMES_200epochs_lr_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
             },
             "transfer_prefixes": None, #["init_blocks.0", "init_blocks.1", "init_blocks.2"],  # Only these prefixes are loaded from the pretrained model. None to load all weights.  
             "input_channels": 3,  # 1 for grayscale images, 3 for RGB ones (or grayscale as RGB)
@@ -240,7 +240,6 @@ def main():
 
         "training_params": {
             "output_folder": "RIMES_MIM_PRETRAINED_Seed_1",  # folder names for logs and weigths FCN_IAM_line_syn, FCN_RIMES_line_syn, FCN_read_2016_line_syn
-            #"output_folder": "FCN_RIMES_line_syn",  # folder names for logs and weigths FCN_IAM_line_syn, FCN_RIMES_line_syn, FCN_read_2016_line_syn
             "max_nb_epochs": 75,  # max number of epochs for the training
             "freeze_encoder_epochs": -1,  # Number of epochs with encoder frozen at training beginning
             "freeze_prefixes": None, # ["init_blocks", "blocks.0"],  # Prefixes of encoder to freeze at training beginning"
@@ -254,14 +253,6 @@ def main():
             "grad_ratio": 1,  # None or number of epochs to show gradient ratio 
             "manual_seed": 1,  # Random seed for reproducibility
             "optimizers": {
-                #"all": {
-                #    "class": Adam,
-                #    "args": {
-                #        "lr": 0.0001, # this is the original value
-                #        #"lr": 0.00001,
-                #        "amsgrad": False,
-                #    }
-                #},
                 "encoder": {
                     "class": Adam,
                     "args": {
@@ -284,7 +275,7 @@ def main():
             "log_values": True,  # Log values in log file
             "lr_schedulers": None,  # Learning rate schedulers
             "eval_on_valid": True,  # Whether to eval and logs metrics on validation set during training or not
-            "eval_on_valid_interval": 2,  # Interval (in epochs) to evaluate during training
+            "eval_on_valid_interval": 1,  # Interval (in epochs) to evaluate during training
             "focus_metric": "cer",  # Metrics to focus on to determine best epoch
             "expected_metric_value": "low",  # ["high", "low"] What is best for the focus metric value
             "set_name_focus_metric": "{}-valid".format(dataset_name),  # Which dataset to focus on to select best weights

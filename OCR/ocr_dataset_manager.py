@@ -426,7 +426,6 @@ class OCRDataset(GenericDataset):
         return sample
 
     def generate_synthetic_iam_page(self, background, coords, nb_lines=10, crop=False):
-        # $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
         max_nb_lines = self.get_syn_max_lines()
         config = self.params["config"]["synthetic_data"]
         matching_token = IAM_MATCHING_TOKENS
@@ -1232,7 +1231,6 @@ class OCRDataset(GenericDataset):
         }
 
     def generate_synthetic_read2016_page(self, background, coords, side="left", nb_lines=20, crop=False):
-        # #################################################################################################
         config = self.params["config"]["synthetic_data"]
         configconfig = self.params["config"]["synthetic_data"]["config"]
         realHTR = configconfig.get("not_synthetic", False)
@@ -1409,7 +1407,6 @@ class OCRDataset(GenericDataset):
         config = self.params["config"]["synthetic_data"]["config"]
         while True:
             if config.get("not_synthetic", False):
-                #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 sample_index = randint(0, self.line_dataset.__len__()-1)
                 one_line = self.line_dataset.samples[sample_index]
                 text = one_line["label"].translate(str.maketrans("", "", "ⓟⓢⓑⒷⓈⓅ"))
@@ -1449,8 +1446,6 @@ class OCRDataset(GenericDataset):
         config = self.params["config"]["synthetic_data"]["config"]
         while True:
             if config.get("not_synthetic", False):
-
-                #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 sample_index = randint(0, self.line_dataset.__len__()-1)
                 one_line = self.line_dataset.samples[sample_index]
                 text = one_line["label"].translate(str.maketrans("", "", "ⓟⓢⓑⒷⓈⓅ"))
@@ -1512,25 +1507,6 @@ class OCRDataset(GenericDataset):
         return generate_real_line_image(img, sample, padding, config["color_mode"])
 
     def generate_typed_text_paragraph_imageHTR(self, samples, padding_value=255, max_pad_left_ratio=0.1, same_font_size=False):
-        #config = self.params["config"]["synthetic_data"]["config"]
-        #if same_font_size:
-        #    images = list()
-        #    txt_color = config["text_color_default"]
-        #    bg_color = config["background_color_default"]
-        #    font_size = randint(config["font_size_min"], config["font_size_max"] + 1)
-        #    for text in texts:
-        #        font_path = config["valid_fonts"][randint(0, len(config["valid_fonts"]))]
-        #        fnt = ImageFont.truetype(font_path, font_size)
-        #        #text_width, text_height = fnt.getsize(text)
-        #        bbox = fnt.getbbox(text)
-        #        text_width, text_height = bbox[2] - bbox[0], bbox[3] - bbox[1]
-        #        padding_top = int(rand_uniform(config["padding_top_ratio_min"], config["padding_top_ratio_max"]) * text_height)
-        #        padding_bottom = int(rand_uniform(config["padding_bottom_ratio_min"], config["padding_bottom_ratio_max"]) * text_height)
-        #        padding_left = int(rand_uniform(config["padding_left_ratio_min"], config["padding_left_ratio_max"]) * text_width)
-        #        padding_right = int(rand_uniform(config["padding_right_ratio_min"], config["padding_right_ratio_max"]) * text_width)
-        #        padding = [padding_top, padding_bottom, padding_left, padding_right]
-        #        images.append(generate_typed_text_line_image_from_params(text, fnt, bg_color, txt_color, config["color_mode"], padding))
-        #else:
         images = [t["image"] for t in samples]
 
         max_width = max([img.shape[1] for img in images])

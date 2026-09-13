@@ -123,7 +123,7 @@ params = {
             }
         },
         "line_dataset_params": {
-           "path": "/home/michel/dev/python/formatted/RIMES_non_syn_line",
+           "path": "${HOME}/dev/python/formatted/RIMES_non_syn_line",
         },
     },
 
@@ -150,7 +150,7 @@ params = {
             #"decoder": ["decoder", "outputs/FCN_IAM_line/checkpoints/best.pt", True, False],
             #"encoder": ["encoder", "outputs/FCN_RIMES_line_syn/checkpoints/best.pt", True, True],
             #"decoder": ["decoder", "outputs/FCN_RIMES_line_syn/checkpoints/best.pt", True, False],
-            "encoder": ["encoder", "/home/michel/dev/python/DAN/outputs/FCN_RIMES_100/checkpoints/best.pt", True, True],          
+            "encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/FCN_RIMES_100/checkpoints/best.pt", True, True],          
         },
         "transfered_charset": True,  # Transfer learning of the decision layer based on charset of the line HTR model
         "additional_tokens": 1,  # for decision layer = [<eot>, ], only for transfered charset

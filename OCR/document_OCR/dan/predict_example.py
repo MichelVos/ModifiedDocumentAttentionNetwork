@@ -186,7 +186,7 @@ if __name__ == "__main__":
     root_logger.addHandler(errHandler)
     logger = logging.getLogger("DAN_predict")
     logger.info("DAN predict example")
-    model_path = "/home/michel/dev/python/DAN/outputs/dan_IAM_page/checkpoints/best_295.pt"  # CHANGE WITH YOUR MODEL PATH
-    img_paths = ["/home/michel/dev/python/test/iam.jpeg"]  # CHANGE WITH YOUR IMAGES PATH
+    model_path = "${HOME}/dev/python/DAN/outputs/dan_IAM_page/checkpoints/best_295.pt"  # CHANGE WITH YOUR MODEL PATH
+    img_paths = ["${HOME}/dev/python/test/iam.jpeg"]  # CHANGE WITH YOUR IMAGES PATH
     predict(model_path, img_paths)
 

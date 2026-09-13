@@ -289,21 +289,9 @@ class DocFolder(Dataset):
                     temp_img = np.expand_dims(temp_img, axis=2)
                 img = temp_img
                 resize_ratio = [ratio, ratio]
-        '''
-        if resize_ratio != [1, 1] and "raw_line_seg_label" in sample:
-            for li in range(len(sample["raw_line_seg_label"])):
-                for side, ratio in zip((["bottom", "top"], ["right", "left"]), resize_ratio):
-                    for s in side:
-                        sample["raw_line_seg_label"][li][s] = sample["raw_line_seg_label"][li][s] * ratio
-        '''
-        #sample["img"] = img
-        #sample["resize_ratio"] = resize_ratio
         return img
 
     def apply_specific_treatment_after_dataset_loading(self, dataset):
-        #dataset.charset = self.charset
-        #dataset.tokens = self.tokens
-        #dataset.convert_labels()
         if "READ_2016" in dataset.name and "augmentation" in dataset.params["config"] and dataset.params["config"]["augmentation"]:
             dataset.params["config"]["augmentation"]["fill_value"] = tuple([int(i) for i in dataset.mean])
         if "padding" in dataset.params["config"] and dataset.params["config"]["padding"]["min_height"] == "max":
@@ -340,7 +328,6 @@ class TwoViewWrapper(torch.utils.data.Dataset):
             img2.save(f"augments/view2_{i}.png")
         
         return {"view1": v1, "view2": v2, "path": path}
-#imgcount = 0
 
 def random_affine(img, degrees, translate, scale, shear):
     """
@@ -439,89 +426,11 @@ def aug_lines(x: np.ndarray, tmean, std, i, j) -> np.ndarray:
                 shear=(-3, 3)
                 )
 
-    '''
-    # ----------------------
-    # 1. Mild brightness/contrast jitter
-    # ----------------------
-    if random.random() < 0.8:
-        b = random.uniform(0.9, 1.1)
-        c = random.uniform(0.9, 1.1)
-        mean = np.mean(x_raw, axis=(0,1), keepdims=True)
-        x_raw = (x_raw - mean) * c + mean
-        x_raw = np.clip(x_raw * b, 0.0, 1.0)
-
-    # ----------------------
-    # 2. Mild gaussian blur
-    # ----------------------
-    if random.random() < 0.3:
-        sigma = random.uniform(0.1, 0.5)   # safe range for lines
-        x_raw = cv2.GaussianBlur(x_raw, (3, 3), sigmaX=sigma)
-
-    # ----------------------
-    # 3. Mild gaussian noise
-    # ----------------------
-    if random.random() < 0.2:
-        noise = np.random.normal(0, 0.01, x_raw.shape).astype(np.float32)
-        x_raw = np.clip(x_raw + noise, 0.0, 1.0)
-
-    # ----------------------
-    # 4. Mild JPEG compression
-    # ----------------------
-    if random.random() < 0.2:
-        q = random.randint(70, 95)
-        img_uint8 = (x_raw * 255).astype(np.uint8)
-        pil_img = Image.fromarray(img_uint8.squeeze())
-        buf = io.BytesIO()
-        pil_img.save(buf, format="JPEG", quality=q)
-        x_raw = np.array(Image.open(io.BytesIO(buf.getvalue()))).astype(np.float32) / 255.0
-        if x_raw.ndim == 2:
-            x_raw = np.expand_dims(x_raw, axis=2)
-
-    # ----------------------
-    # 5. Small rotation (safe)
-    # ----------------------
-    angle = random.uniform(-2.0, 2.0)
-    M = cv2.getRotationMatrix2D((W / 2, H / 2), angle, 1.0)
-    x_raw = cv2.warpAffine(
-        x_raw,
-        M,
-        (W, H),
-        flags=cv2.INTER_LINEAR,
-        borderMode=cv2.BORDER_CONSTANT,
-        borderValue=0,
-    )
-    if x_raw.ndim == 2:
-        x_raw = np.expand_dims(x_raw, axis=2)
-
-    if random.random() < 0.5:
-        sx = random.uniform(0.8, 1.2)
-        M = np.array([[sx, 0, 0],
-                    [0, 1.0, 0]], dtype=np.float32)
-        x_raw = cv2.warpAffine(
-            x_raw, M, (W, H),
-            flags=cv2.INTER_LINEAR,
-            borderMode=cv2.BORDER_CONSTANT,
-            borderValue=0,
-        )
-
-    if random.random() < 0.3:
-        sy = random.uniform(0.9, 1.1)
-        M = np.array([[1.0, 0, 0],
-                    [0, sy, 0]], dtype=np.float32)
-
-    if random.random() < 0.5:
-        mask_w = random.randint(W // 20, W // 8)
-        x0 = random.randint(0, W - mask_w)
-        x_raw[:, x0:x0 + mask_w, :] = 0.0
-
-    '''
     # ----------------------
     # Renormalize and return
     # ----------------------
     x_out = ((x_raw * 255.0) - tmean) / std # Back to normalized
     return x_out.astype(np.float32)
-
-import numpy as np
 
 def brightness_contrast(x, b=(0.9,1.1), c=(0.9,1.1)):
     """
@@ -535,8 +444,6 @@ def brightness_contrast(x, b=(0.9,1.1), c=(0.9,1.1)):
     x = x * b_val                    # brightness
     return np.clip(x, 0.0, 1.0)
 
-import cv2
-import random
 
 def gaussian_blur(x, k=3, sigma=(0.1,0.5)):
     """
@@ -755,10 +662,6 @@ def default_doc_augment(x: np.ndarray, tmean, std, i, j) -> np.ndarray:
     
     write_image(i, x_raw, "After first loop", j)
     
-    #print("x.min:", x_raw.min(), "x.max:", x_raw.max())
-    #print("x.mean:", x_raw.mean())
-    #print("per-channel mean:", x_raw.mean(axis=(0,1)))
-
     # Brightness / contrast jitter
     if random.random() < 0.8 and True:
         proc = proc + 'bc '
@@ -830,17 +733,11 @@ def default_doc_augment(x: np.ndarray, tmean, std, i, j) -> np.ndarray:
         write_image(i, x_raw, "rot", j)
 
 
-    #arr = (x_raw * 255).astype(np.uint8)  # scale to [0,255] and cast to uint8
-    #img = Image.fromarray(arr)
-    #img.save(f"{imgcount}_augmented.png")
-    #with open(f"{i}_proc.txt", "w", encoding="utf-8") as f:
-    #    f.write(proc)
-    #imgcount += 1
     x1 = ((x_raw * 255) - tmean) / std # normalize again
     return x1.astype(np.float32)
 
 def write_image(index, img, remark, j):
-    '''
+    ''' Uncomment this block to save intermediate images for debugging
     arr = (img * 255).astype(np.uint8)  # scale to [0,255] and cast to uint8
     img = Image.fromarray(arr)
     img.save(f"augments/{index}_{j}_{remark}.png")

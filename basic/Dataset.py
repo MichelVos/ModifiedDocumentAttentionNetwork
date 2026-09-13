@@ -417,7 +417,7 @@ params = {
     },
 
     "line_dataset_params": {
-        "path": "/home/michel/dev/python/formatted/IAM_non_syn_line",
+        "path": "${HOME}/dev/python/formatted/IAM_non_syn_line",
     },
 
     "model_params": {

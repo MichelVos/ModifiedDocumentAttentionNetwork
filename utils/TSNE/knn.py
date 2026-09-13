@@ -31,7 +31,9 @@ import warnings
 from typing import Union, Iterable
 from tqdm import tqdm
 from collections import defaultdict
-
+import random
+import numpy as np
+import torch
 
 def knn_predict(z_query, Z, Y, k=5, num_classes=10):
     z_query = z_query / z_query.norm()
@@ -121,15 +123,15 @@ params = {
         },
     },
     "paths":{
-        "page_files":"/home/michel/dev/python/formatted/IAM_page",
-        "line_files":"/home/michel/dev/python/formatted/IAM_non_syn_line",
+        "page_files":"${HOME}/dev/python/formatted/IAM_page",
+        "line_files":"${HOME}/dev/python/formatted/IAM_non_syn_line",
     },
 }
 
 
 if __name__ == "__main__":
-    imagesPath = "/home/michel/dev/python/raw/IAM/words"
-    metadata = "/home/michel/dev/python/DAN/utils/TSNE/words.txt"
+    imagesPath = "${HOME}/dev/python/raw/IAM/words"
+    metadata = "${HOME}/dev/python/DAN/utils/TSNE/words.txt"
     top_n = 10
     samples_per_n = 200
     standard = True
@@ -141,26 +143,28 @@ if __name__ == "__main__":
     init = True
     if init:
         checkpoint = torch.load(
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
-            #"/home/michel/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            "/home/michel/dev/python/SparK/IAM_line_25perc_random/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
+            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            "${HOME}/dev/python/SparK/IAM_line_25perc_random/best.pt",
             map_location="cpu",
             weights_only=False
         )
+        incompatibleKeys = []
         if "encoder_state_dict" in checkpoint:
-            encoder.load_state_dict(checkpoint["encoder_state_dict"])
+            incompatibleKeys = encoder.load_state_dict(checkpoint["encoder_state_dict"])
             print("Loaded encoder state dict from checkpoint ")
         else:
-            encoder.load_state_dict(checkpoint)
+            incompatibleKeys = encoder.load_state_dict(checkpoint)
             print("Loaded encoder state dict from checkpoint ")
+        print(f"Incompatible keys when loading checkpoint: {incompatibleKeys}")
     w = next(encoder.parameters()).detach().cpu()
     print(f"mean is {w.mean()}, std={w.std()}")
 
@@ -191,10 +195,6 @@ if __name__ == "__main__":
 
             x = x.unsqueeze(0).to(device)   # [1,C,H,W]
 
-            #z = encoder(x)                 # [1,C,H',W']
-            #z = z.mean(dim=[2, 3])         # [1,C]  ✅ GLOBAL POOLING
-            #z = z.squeeze(0)               # [C]
-            #z = z / z.norm()               # L2 normalize
 
             if standard:
                 z = encoder(x)                 # [1, C, H, W]
@@ -203,7 +203,7 @@ if __name__ == "__main__":
                 z = z / z.norm()        
             else:
                 z = encoder(x)        # [1, C, H, W]
-                z = z.mean(dim=2)     # [1, C, W]   ← keep sequence
+                z = z.mean(dim=2)     # [1, C, W]   keep sequence
                 z = z.flatten(1)      # [1, C·W]
                 z = z.squeeze(0)
                 z = z / z.norm()
@@ -240,7 +240,7 @@ if __name__ == "__main__":
                     zq = zq / zq.norm()        
                 else:
                     zq = encoder(x)        # [1, C, H, W]
-                    zq = zq.mean(dim=2)     # [1, C, W]   ← keep sequence
+                    zq = zq.mean(dim=2)     # [1, C, W]   keep sequence
                     zq = zq.flatten(1)      # [1, C·W]
                     zq = zq.squeeze(0)
                     zq = zq / zq.norm()
@@ -252,8 +252,11 @@ if __name__ == "__main__":
         print(f"kNN accuracy (k={k}) = {acc:.4f}")
         result.append((k, acc))
         # write results to csv file
-        with open("seqclr.csv", "w") as f:
-            f.write("k,accuracy\n")
-            for k_val, acc_val in result:
-                f.write(f"{k_val},{acc_val}\n")
+    
+    initialised = 'init' if init else 'noinit'
+    filename = f"{dataset_name}_{seed}_{initialised}_kNN_results.csv"
+    with open(filename, "w") as f:
+        f.write("k,accuracy\n")
+        for k_val, acc_val in result:
+            f.write(f"{k_val},{acc_val}\n")
 
