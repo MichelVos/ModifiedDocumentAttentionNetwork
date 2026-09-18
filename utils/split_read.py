@@ -4,11 +4,11 @@ import numpy as np
 import io
 import webdataset as wds
 import cv2
+from pathlib import Path
 
 
-
-input_dir = "${HOME}/dev/python/Bautzen/jpg.raw"
-output_dir = "${HOME}/dev/python/Bautzen/jpg.raw.shards"
+input_dir = f"{Path.home()}/dev/python/Bautzen/jpg.raw"
+output_dir = f"{Path.home()}/dev/python/Bautzen/jpg.raw.shards"
 patch_size = 224
 
 os.makedirs(output_dir, exist_ok=True)

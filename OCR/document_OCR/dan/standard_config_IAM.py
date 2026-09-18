@@ -64,22 +64,8 @@ params = {
             ],
             "augmentation": aug_config(0.9, 0.1),
             # "synthetic_data": None,
-            "non_synthetic_data": {
-                "init_proba": 0.98,  # begin proba to generate synthetic document
-                "end_proba": 0.2,  # end proba to generate synthetic document
-                "num_steps_proba": 200000,  # linearly decrease the percent of synthetic document from 90% to 20% through 200000 samples
-                "proba_scheduler_function": linear_scheduler,  # decrease proba rate linearly
-                "start_scheduler_at_max_line": True,  # start decreasing proba only after curriculum reach max number of lines
-                "dataset_level": dataset_level,
-                "curriculum": True,  # use curriculum learning (slowly increase number of lines per synthetic samples)
-                "crop_curriculum": True,  # during curriculum learning, crop images under the last text line
-                "curr_start": 0,  # start curriculum at iteration
-                "curr_step": 10000,  # interval to increase the number of lines for curriculum learning
-                "min_nb_lines": 1,  # initial number of lines for curriculum learning
-                "max_nb_lines": max_nb_lines[dataset_name],  # maximum number of lines for curriculum learning
-                "padding_value": 255,                    
-                "page": True, # Page and line behave a little different.
-            },
+
+            "not_synthetic": False,
             "synthetic_data": {
                 "init_proba": 0.9,  # begin proba to generate synthetic document
                 "end_proba": 0.2,  # end proba to generate synthetic document
@@ -111,7 +97,7 @@ params = {
                     "padding_top_ratio_max": 0.1,
                     "padding_bottom_ratio_min": 0.02,
                     "padding_bottom_ratio_max": 0.1,
-                    "not_synthetic": False,
+                    
                 },
             }
         }

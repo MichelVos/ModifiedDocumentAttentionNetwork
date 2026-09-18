@@ -5,6 +5,7 @@ import logging
 import os
 import sys
 from typing import Iterable, List, Tuple
+from pathlib import Path
 import json
 import matplotlib.pyplot as plt
 from matplotlib.ticker import PercentFormatter
@@ -13,17 +14,17 @@ try:
 except Exception as e:  # pragma: no cover - helpful error for user
     sys.exit("Error: could not import tensorboard's event_accumulator. Install with `pip install tensorboard`.")
 
-manifest_path = "${HOME}/dev/python/DAN/utils/IAM_Contrastive_15.json"
-#manifest_path = "${HOME}/dev/python/DAN/utils/IAM_MIM.json"
-#manifest_path = "${HOME}/dev/python/DAN/utils/IAM_MIM_CONTR.json"
+manifest_path = f"{Path.home()}/dev/python/DAN/utils/IAM_Contrastive_15.json"
+#manifest_path = f"{Path.home()}/dev/python/DAN/utils/IAM_MIM.json"
+#manifest_path = f"{Path.home()}/dev/python/DAN/utils/IAM_MIM_CONTR.json"
 tag = "IAM-valid_cer"
 dataset = "IAM"
-#manifest_path = "${HOME}/dev/python/DAN/utils/READ_MIM.json"
-manifest_path = "${HOME}/dev/python/DAN/utils/READ_Contrastive_15.json"
+#manifest_path = f"{Path.home()}/dev/python/DAN/utils/READ_MIM.json"
+manifest_path = f"{Path.home()}/dev/python/DAN/utils/READ_Contrastive_15.json"
 tag = "READ_2016-valid_cer"
 dataset = "READ_2016"
-manifest_path = "${HOME}/dev/python/DAN/utils/RIMES_Contrastive_15.json"
-#manifest_path = "${HOME}/dev/python/DAN/utils/RIMES_MIM.json"
+manifest_path = f"{Path.home()}/dev/python/DAN/utils/RIMES_Contrastive_15.json"
+#manifest_path = f"{Path.home()}/dev/python/DAN/utils/RIMES_MIM.json"
 tag = "RIMES-valid_cer"
 dataset = "RIMES"
 

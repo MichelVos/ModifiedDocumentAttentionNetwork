@@ -107,12 +107,8 @@ def layerwise_cka(model_a, model_b, layer_names, batch):
 # print(cka_scores)
 model_ssl = FCN_Encoder(params={"input_channels":3, "dropout":0.1})
 model_sup = FCN_Encoder(params={"input_channels":3, "dropout":0.1})
-ssl_path = os.path.expandvars(
-    "${HOME}/tmp/IAM_contrastive/simclr_epoch101.pth"
-)
-sup_path = os.path.expandvars(
-    "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best_202.pt"
-)
+ssl_path = f"{Path.home()}/tmp/IAM_contrastive/simclr_epoch101.pth"
+sup_path = f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best_202.pt"
 model_ssl.load_state_dict(torch.load(ssl_path, map_location="cpu")["encoder_state_dict"])
 model_sup.load_state_dict(torch.load(sup_path, map_location="cpu", weights_only=False)["encoder_state_dict"])
 

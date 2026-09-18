@@ -12,11 +12,11 @@ TAG = "READ_2016-valid_cer"
 #TAG = "RIMES-valid_cer"
 
 RUNS =[
-    { "path": "${HOME}/dev/python/DAN/outputs/READBAUTZEN_contrastive_pretrained/results", "description": "SimCLR Pretrain READ 2016", "label": "BautzenSimCLR", "seed1": "1" },
-    #{ "path": "${HOME}/images/bautzen/bautzen/results", "description": "S1S1", "label": "Bautzen", "seed1": "1" },
-    #{ "path": "${HOME}/images/bautzen/bautzen_read/results", "description": "S1S2", "label": "BautzenRead", "seed1": "1" },
-    #{ "path": "${HOME}/images/bautzen/read/results", "description": "Random 1", "label": "Read", "seed1": "1" },
-    { "path": "${HOME}/images/bautzen/random/results", "description": "Random 2", "label": "Random", "seed1": "0" }
+    { "path": f"{Path.home()}/dev/python/DAN/outputs/READBAUTZEN_contrastive_pretrained/results", "description": "SimCLR Pretrain READ 2016", "label": "BautzenSimCLR", "seed1": "1" },
+    #{ "path": f"{Path.home()}/images/bautzen/bautzen/results", "description": "S1S1", "label": "Bautzen", "seed1": "1" },
+    #{ "path": f"{Path.home()}/images/bautzen/bautzen_read/results", "description": "S1S2", "label": "BautzenRead", "seed1": "1" },
+    #{ "path": f"{Path.home()}/images/bautzen/read/results", "description": "Random 1", "label": "Read", "seed1": "1" },
+    { "path": f"{Path.home()}/images/bautzen/random/results", "description": "Random 2", "label": "Random", "seed1": "0" }
 ]
 
 

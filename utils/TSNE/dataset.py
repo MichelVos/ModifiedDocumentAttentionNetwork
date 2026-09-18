@@ -13,6 +13,7 @@ import numpy as np
 import torch
 import math
 import cv2
+from pathlib import Path
 
 class words(Dataset):
     def __init__(self, params,  imagesPath, metadata, min_length = None):
@@ -323,8 +324,8 @@ class words(Dataset):
     
 
 if __name__ == "__main__":
-    imagesPath = "${HOME}/dev/python/raw/IAM/words"
-    metadata = "${HOME}/dev/python/DAN/utils/TSNE/words.txt"
+    imagesPath = f"{Path.home()}/dev/python/raw/IAM/words"
+    metadata = f"{Path.home()}/dev/python/DAN/utils/TSNE/words.txt"
     dataset = words(None, imagesPath, metadata)
 
     for i in range(10):

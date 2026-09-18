@@ -478,7 +478,7 @@ params = {
         "tau": 0.2,
     },
     # Use preload to preload the encoder with weights
-    "preload": "${HOME}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt",
+    "preload": None, # f"{Path.home()}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt",
     "training_params":{
         "batch_size_line": 64,
         "batch_size_page": 8,
@@ -518,8 +518,8 @@ params = {
         },
     },
     "paths":{
-        "page_files":"${HOME}/dev/python/formatted/READ_2016_page",
-        "line_files":"${HOME}/dev/python/formatted/READ_2016_non_syn_line",
+        "page_files":f"{Path.home()}/dev/python/formatted/READ_2016_page",
+        "line_files":f"{Path.home()}/dev/python/formatted/READ_2016_non_syn_line",
     },
 }
 

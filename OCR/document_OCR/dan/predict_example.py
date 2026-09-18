@@ -32,8 +32,7 @@
 #  The fact that you are presently reading this means that you have had
 #  knowledge of the CeCILL-C license and that you accept its terms.
 
-import os.path
-
+from pathlib import Path
 import torch
 from torch.optim import Adam
 from PIL import Image
@@ -186,7 +185,7 @@ if __name__ == "__main__":
     root_logger.addHandler(errHandler)
     logger = logging.getLogger("DAN_predict")
     logger.info("DAN predict example")
-    model_path = "${HOME}/dev/python/DAN/outputs/dan_IAM_page/checkpoints/best_295.pt"  # CHANGE WITH YOUR MODEL PATH
-    img_paths = ["${HOME}/dev/python/test/iam.jpeg"]  # CHANGE WITH YOUR IMAGES PATH
+    model_path = f"{Path.home()}/dev/python/DAN/outputs/dan_IAM_page/checkpoints/best_295.pt"  # CHANGE WITH YOUR MODEL PATH
+    img_paths = [f"{Path.home()}/dev/python/test/iam.jpeg"]  # CHANGE WITH YOUR IMAGES PATH
     predict(model_path, img_paths)
 

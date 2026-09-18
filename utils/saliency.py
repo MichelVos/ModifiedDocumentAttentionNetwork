@@ -29,6 +29,7 @@ import matplotlib.pyplot as plt
 import torchvision
 from torchvision.utils import save_image
 import cv2
+from pathlib import Path
 
 class GradCAM:
     def __init__(self, model, target_layer):
@@ -81,7 +82,7 @@ class GradCAM:
 
         return cam
 
-img=Image.open("${HOME}/Labour.jpeg").convert("RGB")
+img=Image.open("{Path.home()}/Labour.jpeg").convert("RGB")
 transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
 ])
@@ -94,16 +95,16 @@ model = FCN_Encoder({
 })
 if True:
     checkpoint = torch.load(
-        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
-        #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
-        "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt",
+        #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+        #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs128_newaug_tau025/simclr_epoch200.pth",
+        #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR/best_90.pt",
+        f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt",
         map_location="cpu",
         weights_only=False
     )
 else:
     checkpoint = torch.load(
-        "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+        f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
         map_location="cpu",
         weights_only=False
     )

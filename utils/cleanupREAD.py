@@ -1,7 +1,7 @@
 import cv2
 import numpy as np
 import os
-
+from pathlib import Path
 
 def enhance_soft(path):
     img = cv2.imread(path)
@@ -88,5 +88,5 @@ if __name__ == "__main__":
     # enhance_image("input.jpg", "output.png", show=True)
 
     # folder:
-    #process_folder("${HOME}/dev/python/formatted/READ_2016_non_syn_line_cleaned2/train", "${HOME}/dev/python/formatted/READ_2016_non_syn_line_cleaned3/train")
-    process_folder("${HOME}/dev/python/formatted/READ_2016_page/test", "${HOME}/dev/python/formatted/READ_2016_page_cleaned3/test")
+    #process_folder(f"{Path.home()}/dev/python/formatted/READ_2016_non_syn_line_cleaned2/train", f"{Path.home()}/dev/python/formatted/READ_2016_non_syn_line_cleaned3/train")
+    process_folder(f"{Path.home()}/dev/python/formatted/READ_2016_page/test", f"{Path.home()}/dev/python/formatted/READ_2016_page_cleaned3/test")

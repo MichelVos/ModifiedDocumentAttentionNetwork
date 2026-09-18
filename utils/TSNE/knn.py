@@ -123,15 +123,15 @@ params = {
         },
     },
     "paths":{
-        "page_files":"${HOME}/dev/python/formatted/IAM_page",
-        "line_files":"${HOME}/dev/python/formatted/IAM_non_syn_line",
+        "page_files":f"{Path.home()}/dev/python/formatted/IAM_page",
+        "line_files":f"{Path.home()}/dev/python/formatted/IAM_non_syn_line",
     },
 }
 
 
 if __name__ == "__main__":
-    imagesPath = "${HOME}/dev/python/raw/IAM/words"
-    metadata = "${HOME}/dev/python/DAN/utils/TSNE/words.txt"
+    imagesPath = f"{Path.home()}/dev/python/raw/IAM/words"
+    metadata = f"{Path.home()}/dev/python/DAN/utils/TSNE/words.txt"
     top_n = 10
     samples_per_n = 200
     standard = True
@@ -143,17 +143,17 @@ if __name__ == "__main__":
     init = True
     if init:
         checkpoint = torch.load(
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
-            #"${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
-            "${HOME}/dev/python/SparK/IAM_line_25perc_random/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR12/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR15/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",
+            #f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",
+            f"{Path.home()}/dev/python/SparK/IAM_line_25perc_random/best.pt",
             map_location="cpu",
             weights_only=False
         )

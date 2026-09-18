@@ -68,7 +68,7 @@ class OCRDatasetManager(DatasetManager):
         self.charset = params["charset"] if "charset" in params else self.get_merged_charsets()
 
         if "synthetic_data" in self.params["config"] and self.params["config"]["synthetic_data"] and "config" in self.params["config"]["synthetic_data"]:
-            real_line_strips = self.params["config"]["synthetic_data"]["config"].get("not_synthetic", False)
+            real_line_strips = self.params["config"].get("not_synthetic", False)
             self.char_only_set = self.charset.copy()
             for token_dict in [RIMES_MATCHING_TOKENS, READ_MATCHING_TOKENS, IAM_MATCHING_TOKENS]:
                 for key in token_dict:
@@ -152,7 +152,7 @@ class OCRDataset(GenericDataset):
             sample = apply_preprocessing(sample, self.params["config"]["preprocessings"])
         nonSynthetic = False
         if self.params["dataset_level"].startswith("non_syn_line"):
-            nonSynthetic = self.params["config"].get("synthetic_data", {}).get("config", {}).get("not_synthetic", False)
+            nonSynthetic = self.params["config"].get("not_synthetic", False)
         if "synthetic_data" in self.params["config"] and self.params["config"]["synthetic_data"] and self.set_name == "train" and not nonSynthetic:
                 if not raw:
                     sample = self.generate_synthetic_data(sample)
@@ -378,8 +378,8 @@ class OCRDataset(GenericDataset):
                 pages.append(self.generate_synthetic_read2016_page(background, coords, side=side, crop=crop,
                                                                nb_lines=nb_lines_per_page))
             elif "RIMES" in self.params["datasets"].keys():
-                configconfig = self.params["config"]["synthetic_data"]["config"]
-                realHTR = configconfig.get("not_synthetic", False)
+                #configconfig = self.params["config"]["synthetic_data"]["config"]
+                realHTR = self.params["config"].get("not_synthetic", False)
                 if not realHTR:
                     pages.append(self.generate_synthetic_rimes_page(background, nb_lines=nb_lines_per_page, crop=crop))
                 else:
@@ -517,8 +517,8 @@ class OCRDataset(GenericDataset):
         return [background, page_labels, 1]
 
     def generate_synthetic_rimes_page_HTR(self, background, nb_lines=20, crop=False):
-        configconfig = self.params["config"]["synthetic_data"]["config"]
-        realHTR = configconfig.get("not_synthetic", False)
+        #configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = self.params["config"].get("not_synthetic", False)
         max_nb_lines = self.get_syn_max_lines()
 
         def larger_lines(label):
@@ -868,8 +868,8 @@ class OCRDataset(GenericDataset):
         return [background, page_labels, 1]
 
     def generate_synthetic_rimes_page(self, background, nb_lines=20, crop=False):
-        configconfig = self.params["config"]["synthetic_data"]["config"]
-        realHTR = configconfig.get("not_synthetic", False)
+        #configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = self.params["config"].get("not_synthetic", False)
         max_nb_lines = self.get_syn_max_lines()
 
         def larger_lines(label):
@@ -1232,8 +1232,8 @@ class OCRDataset(GenericDataset):
 
     def generate_synthetic_read2016_page(self, background, coords, side="left", nb_lines=20, crop=False):
         config = self.params["config"]["synthetic_data"]
-        configconfig = self.params["config"]["synthetic_data"]["config"]
-        realHTR = configconfig.get("not_synthetic", False)
+        #configconfig = self.params["config"]["synthetic_data"]["config"]
+        realHTR = self.params["config"].get("not_synthetic", False)
         two_column = False
         matching_token = READ_MATCHING_TOKENS
         page_labels = {
@@ -1406,7 +1406,7 @@ class OCRDataset(GenericDataset):
     def get_printed_line_read_2016(self, mode="body"):
         config = self.params["config"]["synthetic_data"]["config"]
         while True:
-            if config.get("not_synthetic", False):
+            if self.params["config"].get("not_synthetic", False):
                 sample_index = randint(0, self.line_dataset.__len__()-1)
                 one_line = self.line_dataset.samples[sample_index]
                 text = one_line["label"].translate(str.maketrans("", "", "ⓟⓢⓑⒷⓈⓅ"))

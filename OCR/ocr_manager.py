@@ -71,7 +71,7 @@ class OCRManager(GenericTrainingManager):
 
             samples = list()
             index = 0
-            handwritten = self.params["dataset_params"].get("config", {}).get("synthetic_data", {}).get("config", {}).get("not_synthetic", False)
+            handwritten = self.params["dataset_params"].get("config", {}).get("not_synthetic", False)
             while index < len(dataset.samples):
                 #for sample in dataset.samples:
                 sample = dataset.__getitem__(index, raw=handwritten)
@@ -121,7 +121,7 @@ class OCRManager(GenericTrainingManager):
                 img_path = os.path.join(set_path, img_name)
                 print(os.path.abspath(img_path))
 
-                if self.params["dataset_params"].get("config", {}).get("synthetic_data", {}).get("config", {}).get("not_synthetic", False):
+                if self.params["dataset_params"].get("config", {}).get("not_synthetic", False):
                     img = dataset.generate_real_line_image(sample)
                 else:
                     img = dataset.generate_typed_text_line_image(sample["label"])

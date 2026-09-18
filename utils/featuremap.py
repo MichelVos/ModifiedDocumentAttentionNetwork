@@ -40,8 +40,8 @@ activations = {}
 load image.
 Image is converted to RGB if needed, then to tensor and normalized to [0,1]
 '''
-#img=Image.open("${HOME}/dev/python/formatted/IAM_non_syn_line/train/train_0.jpeg").convert("RGB")
-img=Image.open("${HOME}/Labour.jpeg").convert("RGB")
+#img=Image.open(f"{Path.home()}/dev/python/formatted/IAM_non_syn_line/train/train_0.jpeg").convert("RGB")
+img=Image.open(f"{Path.home()}/Labour.jpeg").convert("RGB")
 transform = torchvision.transforms.Compose([
     torchvision.transforms.ToTensor(),
 ])
@@ -66,13 +66,13 @@ make_dot(y).render("fcn_encoder_graph", format="png")
 
 if True:
     checkpoint = torch.load(
-        "${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
+        f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly_noscale/simclr_epoch1.pth", #simclr_epoch200.pth",
         map_location="cpu",
         weights_only=False
     )
 else:
     checkpoint = torch.load(
-        "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
+        f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt",
         map_location="cpu",
         weights_only=False
     )

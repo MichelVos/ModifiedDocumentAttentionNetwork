@@ -49,7 +49,7 @@ import torch.multiprocessing as mp
 import torch
 import numpy as np
 import random
-
+from pathlib import Path
 
 def train_and_test(rank, params):
     torch.manual_seed(0)
@@ -146,6 +146,7 @@ def main():
                 "augmentation": line_aug_config(0.9, 0.1),
                 #"augmentation": None,
                 #
+                "not_synthetic": True, #True,  # If True, samples are extracted from the original images"
                 "synthetic_data": {
                     "mode": "line_hw_to_printed",
                     "init_proba": 1,
@@ -168,7 +169,7 @@ def main():
                         "padding_top_ratio_max": 0.2,
                         "padding_bottom_ratio_min": 0.02,
                         "padding_bottom_ratio_max": 0.2,
-                        "not_synthetic": True, #True,  # If True, samples are extracted from the original images"
+                        
                     },
                 },
             
@@ -196,30 +197,30 @@ def main():
                 #"encoder": ["encoder", "outputs/IAM_SSL_Linestrips/best.pt", True, True],
                 #decoder": ["decoder", "outputs/IAM_SSL_Linestrips/best.pt", True, False],
                 #"encoder": ["encoder", "outputs/IAM_contrastive_lineonly_scale/best.pt", True, True],
-                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs64_newaug_tau01/best.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly_newloss_bs64_newaug_tau01/best.pt", True, True],
                 #"decoder": ["decoder", "outputs/IAM_contrastive_equal/best.pt", True, False],
-                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt", True, True],
-                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt", True, True],
-                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR8.2/best.pt", True, True],
-                #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR9/best.pt", True, False],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR2/best_99.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR6/best_176.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR8.2/best.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR9/best.pt", True, False],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR10/best.pt", True, True],
                 #"encoder" : ["encoder", "/data2/backup20260104/IAM_contrastive_equal/best.pt", True, True],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",True, True],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",True, True],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",True, True],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR16/simclr_epoch17.pth", True, True],
-                #"encoder" : ["encoder", "${HOME}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_128x1232_32x8_60perc_random/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_128x1232_32x8_25perc_random/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_line_25perc_random/best.pt", True, True],
-                #"decoder": ["decoder", "${HOME}/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
-                #"decoder": ["decoder", "${HOME}/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/DAN/outputs_seed/RIMES_contrastive_seed_3/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/RIMES_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
-                #"encoder" : ["encoder",  "${HOME}/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
-                #"encoder": ["encoder", "${HOME}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt", True, True],
-                "encoder": ["encoder", "${HOME}/dev/python/SparK/RIMES_200epochs_lr_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR11/best.pt",True, True],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR17/best.pt",True, True],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_new_aug/best.pt",True, True],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR16/simclr_epoch17.pth", True, True],
+                #"encoder" : ["encoder", f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_seqCLR13/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/SparK/IAM_line_128x1232_32x8_60perc_random/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/SparK/IAM_line_128x1232_32x8_25perc_random/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/SparK/IAM_line_25perc_random/best.pt", True, True],
+                #"decoder": ["decoder", f"{Path.home()}/dev/python/SparK/IAM_line_30perc_random_sparse_mask_L2/best.pt", True, True],
+                #"decoder": ["decoder", f"{Path.home()}/dev/python/SparK/IAM_page_50perc_random_sparse_mask/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/DAN/outputs_seed/RIMES_contrastive_seed_3/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/SparK/RIMES_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder" : ["encoder",  f"{Path.home()}/dev/python/SparK/IAM_pretrain_L2_224_25perc_patches_set_encoder_A1/best.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/SparK/READ_pretrain_L2_224_40perc_random_full_set_encoder_A1/best.pt", True, True],
+                "encoder": ["encoder", f"{Path.home()}/dev/python/SparK/RIMES_200epochs_lr_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
             },
             "transfer_prefixes": None, #["init_blocks.0", "init_blocks.1", "init_blocks.2"],  # Only these prefixes are loaded from the pretrained model. None to load all weights.  
             "input_channels": 3,  # 1 for grayscale images, 3 for RGB ones (or grayscale as RGB)

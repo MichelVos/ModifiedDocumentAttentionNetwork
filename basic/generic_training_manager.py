@@ -58,6 +58,7 @@ from basic.Dataset import DocFolder
 import time
 import matplotlib.pyplot as plt
 import torchvision
+from pathlib import Path
 import torchvision.utils as vutils
 from basic.models import FCN_Encoder, ResNet18CTC
 
@@ -297,7 +298,7 @@ class GenericTrainingManager:
                 print(f"Full path of path = {os.path.abspath(path)}")
 
                 # the file is best_xxx.pt the correct name must be found by getting the path without name and fetching the best_xx.pt filename
-                #path = "${HOME}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best.pt"
+                #path = f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_syn/checkpoints/best.pt"
                 directory = os.path.dirname(path)
                 # Find all files starting with 'best' and ending with '.pt'
                 best_files = glob.glob(os.path.join(directory, "best*.pt"))

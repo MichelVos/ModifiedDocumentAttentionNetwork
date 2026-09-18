@@ -144,6 +144,7 @@ def main():
                 "augmentation": line_aug_config(0.9, 0.1),
                 #"augmentation": None,
                 #
+                "not_synthetic": True, #True,  # If True, samples are extracted from the original images"
                 "synthetic_data": {
                     "mode": "line_hw_to_printed",
                     "init_proba": 1,
@@ -166,7 +167,6 @@ def main():
                         "padding_top_ratio_max": 0.2,
                         "padding_bottom_ratio_min": 0.02,
                         "padding_bottom_ratio_max": 0.2,
-                        "not_synthetic": True, #True,  # If True, samples are extracted from the original images"
                     },
                 },
             
@@ -182,7 +182,7 @@ def main():
             },
             #"transfer_learning": None,
             "transfer_learning": {
-                #"encoder": ["encoder", "${HOME}/dev/python/SparK/IAM_pretrain_L2_224/best.pt", True, True],
+                #"encoder": ["encoder", f"{Path.home()}/dev/python/SparK/IAM_pretrain_L2_224/best.pt", True, True],
             },
             "transfer_prefixes": None, #["init_blocks.0", "init_blocks.1", "init_blocks.2"],  # Only these prefixes are loaded from the pretrained model. None to load all weights.  
             "input_channels": 3,  # 1 for grayscale images, 3 for RGB ones (or grayscale as RGB)

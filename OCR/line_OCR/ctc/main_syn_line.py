@@ -111,6 +111,7 @@ def main():
                 #"augmentation": line_aug_config(0.9, 0.1),
                 "augmentation": None,
                 #
+                "not_synthetic": True,  # If True, samples are extracted from the original images"
                 "synthetic_data": {
                     "mode": "line_hw_to_printed",
                     "init_proba": 1,
@@ -133,7 +134,7 @@ def main():
                         "padding_top_ratio_max": 0.2,
                         "padding_bottom_ratio_min": 0.02,
                         "padding_bottom_ratio_max": 0.2,
-                        "not_synthetic": True,  # If True, samples are extracted from the original images"
+                        
                     },
                 },
             }

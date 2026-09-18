@@ -16,7 +16,7 @@ import torch
 import numpy as np
 import random
 import torch.multiprocessing as mp
-
+from pathlib import Path
 
 
 dataset_name = "READ_2016"  # ["IAM", "READ_2016", "IAM"]
@@ -82,6 +82,7 @@ params = {
                 "padding_value": 255,                    
                 "page": True, # Page and line behave a little different.
             },
+            "not_synthetic": True,
             "synthetic_data": {
                 "init_proba": 0.9,  # begin proba to generate synthetic document
                 "end_proba": 0.2,  # end proba to generate synthetic document
@@ -113,12 +114,12 @@ params = {
                     "padding_top_ratio_max": 0.1,
                     "padding_bottom_ratio_min": 0.02,
                     "padding_bottom_ratio_max": 0.1,
-                    "not_synthetic": True,
+                    
                 },
             }
         },
         "line_dataset_params": {
-           "path": "${HOME}/dev/python/formatted/READ_2016_non_syn_line",
+           f"path": "{Path.home()}/dev/python/formatted/READ_2016_non_syn_line",
         },
     },
 
@@ -131,8 +132,8 @@ params = {
         # "transfer_learning": None,
         "transfer_learning": {
             # model_name: [state_dict_name, checkpoint_path, learnable, strict]
-            #"encoder": ["encoder", "${HOME}/dev/python/DAN/outputs/FCN_READ_100/checkpoints/best.pt", True, True],
-            "encoder": ["encoder", "${HOME}/dev/python/SparK/BAUTZEN_RD_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
+            #"encoder": ["encoder", f"{Path.home()}/dev/python/DAN/outputs/FCN_READ_100/checkpoints/best.pt", True, True],
+            "encoder": ["encoder", f"{Path.home()}/dev/python/SparK/BAUTZEN_RD_pretrain_L2_224_40perc_random_full_mask_L2_seed_1/best.pt", True, True],
         },
         "transfered_charset": True,  # Transfer learning of the decision layer based on charset of the line HTR model
         "additional_tokens": 1,  # for decision layer = [<eot>, ], only for transfered charset

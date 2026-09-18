@@ -1,13 +1,14 @@
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
-
+from pathlib import Path
 matplotlib.use("TkAgg")
+from pathlib import Path
 
-sup_ckpt = torch.load("${HOME}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", 
+sup_ckpt = torch.load(f"{Path.home()}/dev/python/DAN/outputs/FCN_IAM_line_non_syn/checkpoints/best.pt", 
     map_location="cpu",
     weights_only=False)
-con_ckpt = torch.load("${HOME}/dev/python/DAN/outputs/IAM_contrastive_lineonly/best.pt", 
+con_ckpt = torch.load(f"{Path.home()}/dev/python/DAN/outputs/IAM_contrastive_lineonly/best.pt", 
     map_location="cpu",
     weights_only=False)
 
