@@ -60,7 +60,7 @@ import matplotlib.pyplot as plt
 import torchvision
 from pathlib import Path
 import torchvision.utils as vutils
-from basic.models import FCN_Encoder, ResNet18CTC
+from basic.models import FCN_Encoder
 
 @contextmanager
 def timer(label="block"):
