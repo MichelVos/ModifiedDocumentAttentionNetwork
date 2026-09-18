@@ -1,3 +1,24 @@
+"""
+Dataset.py
+
+Define the document dataset and augmentation pipeline used for training and
+self-supervised learning experiments. This module provides a dataset wrapper for
+document images, including image loading, preprocessing, padding, normalization,
+and augmentation strategies designed for handwritten document recognition.
+It supports both standard supervised training and multi-view contrastive
+training by generating paired augmented views from the same input image.
+
+Typical use:
+    - load document images and metadata from a dataset directory
+    - normalize image statistics across the dataset
+    - apply preprocessing such as resizing, grayscale conversion, and padding
+    - generate multiple augmented views for contrastive learning
+    - support batch generation for training and evaluation
+
+This module is a data-loading and preprocessing utility rather than a core
+model component.
+"""
+
 import math, random
 from typing import List, Dict, Tuple
 import torch

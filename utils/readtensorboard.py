@@ -1,3 +1,22 @@
+"""
+readtensorboard.py
+
+Inspect TensorBoard event files generated during model training and validation.
+This utility loads an event log, reloads the recorded scalars, and prints the
+available metric tags together with their recorded values. It is intended for
+quick debugging and experimental analysis, allowing users to inspect training
+curves, validation metrics, and loss evolution without launching the full
+TensorBoard interface.
+
+Typical use:
+    - inspect available metrics in a training run
+    - read scalar values for loss and validation error
+    - debug the evolution of experiment logs during training
+
+This script is a diagnostic and analysis utility rather than a core training or
+evaluation component.
+"""
+
 from tensorboard.backend.event_processing import event_accumulator
 
 # Path to your event file or directory containing event files

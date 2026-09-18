@@ -1,3 +1,22 @@
+"""
+compare.py
+
+Compare the learned weights of a self-supervised encoder and a supervised
+encoder by measuring the similarity between their corresponding parameters.
+This utility loads two checkpoint files, extracts their state dictionaries when
+available, and iterates over shared tensor keys to compute cosine similarity and
+L2 distance. The resulting statistics provide a lightweight indication of how
+closely the latent representations align across different training paradigms.
+
+Typical use:
+    - compare SSL and supervised encoder checkpoints
+    - analyze weight similarity across training strategies
+    - inspect the relationship between self-supervised and supervised feature learning
+
+This script is a diagnostic and analysis utility rather than a core training
+or evaluation component.
+"""
+
 import torch
 import os
 from pathlib import Path

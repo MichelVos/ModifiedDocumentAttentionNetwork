@@ -1,3 +1,23 @@
+"""
+graph.py
+
+Plot validation learning curves for multiple training runs using TensorBoard
+event files. This utility reads scalar metrics from one or more experiment logs,
+groups results by seed or run, and visualizes the mean evolution of a selected
+metric over training epochs. The script also displays a shaded confidence band
+corresponding to the standard deviation across runs, which helps compare the
+stability and performance of different training configurations.
+
+Typical use:
+    - compare multiple SSL or supervised training runs
+    - visualize validation curves across seeds or pretraining settings
+    - inspect the stability of a metric over time
+    - support experimental analysis and reporting
+
+This script is a diagnostic and visualization utility rather than a training
+or evaluation module.
+"""
+
 import argparse
 import csv
 import glob

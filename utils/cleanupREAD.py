@@ -1,3 +1,27 @@
+"""
+cleanupREAD.py
+
+Preprocess and enhance handwritten document images for READ dataset cleaning.
+This utility reads images from a folder, applies contrast and background
+normalization steps to improve the visibility of text strokes, and saves the
+enhanced versions to a target directory. The script is intended for dataset
+cleanup and preparation prior to model training or evaluation.
+
+The preprocessing pipeline includes:
+    - grayscale conversion
+    - background estimation and removal
+    - contrast normalization
+    - local enhancement using CLAHE-like operations
+    - optional noise reduction
+
+Typical use:
+    - clean a raw dataset folder
+    - improve text readability for OCR or document recognition pipelines
+    - generate enhanced images for downstream training
+
+This script is a data-preprocessing utility rather than a core training module.
+"""
+
 import cv2
 import numpy as np
 import os

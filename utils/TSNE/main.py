@@ -1,3 +1,22 @@
+"""
+TSNE/main.py
+
+Visualize and analyze the embedding space of a trained encoder using t-SNE.
+This utility loads a pretrained FCN encoder, extracts feature representations for
+a subset of handwritten word images, and projects them into two dimensions using
+t-SNE. The resulting embedding plot is used to inspect the structure of the learned
+feature space and to assess whether semantically or visually similar words cluster
+together in latent space.
+
+Typical use:
+    - visualize document embeddings in 2D
+    - compare feature organization across training strategies
+    - analyze clustering behavior of handwritten word representations
+    - support qualitative interpretation of self-supervised and supervised models
+
+This script is a diagnostic and visualization utility rather than a core
+training or evaluation module.
+"""
 
 import os
 import sys

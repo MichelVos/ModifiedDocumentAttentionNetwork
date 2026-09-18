@@ -36,6 +36,23 @@ matplotlib.use("TkAgg")
 
 activations = {}
 
+"""
+featuremap.py
+
+Visualize intermediate feature maps produced by a trained FCN encoder.
+This utility loads an input image, forwards it through the encoder, and attaches
+a hook to a target convolutional layer to capture its activations. The resulting
+feature maps are displayed as a grid for qualitative inspection of the learned
+representations and their spatial response to handwritten text regions.
+
+Typical use:
+    - inspect intermediate activations of the encoder
+    - visualize which spatial regions are emphasized by the network
+    - debug feature extraction behavior and model interpretability
+
+This script is a diagnostic and visualization utility rather than a core
+training or evaluation module.
+"""
 '''
 load image.
 Image is converted to RGB if needed, then to tensor and normalized to [0,1]
@@ -100,13 +117,6 @@ n_cols = 8
 n_rows = math.ceil(num_feature_maps / n_cols)
 fig, axes = plt.subplots(n_rows, n_cols, figsize=(n_cols * 2, n_rows * 2))      
 '''
-
-
-
-
-
-
-
 feat = activations["feat"][0]   # [C, H, W]
 
 num_feature_maps = feat.shape[0]

@@ -1,3 +1,23 @@
+"""
+TSNE/dataset.py
+
+Build a word-level dataset for embedding visualization and nearest-neighbor
+analysis. This utility loads handwritten word images and their corresponding
+annotations, applies optional preprocessing steps, and normalizes samples for
+feature extraction. The resulting dataset is designed for downstream t-SNE
+visualization, k-NN evaluation, and qualitative inspection of the learned
+representation space.
+
+Typical use:
+    - prepare word-image datasets for embedding visualization
+    - load annotation metadata for handwritten word analysis
+    - normalize and resize inputs for encoder-based feature extraction
+    - support representation analysis and clustering experiments
+
+This script is a data-loading and preprocessing utility rather than a core
+training or evaluation module.
+"""
+
 import os
 import sys
 DOSSIER_COURRANT = os.path.dirname(os.path.abspath(__file__))

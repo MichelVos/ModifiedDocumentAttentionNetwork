@@ -1,3 +1,22 @@
+"""
+split_read.py
+
+Split large document images into overlapping or non-overlapping patches and
+discard low-information regions before packaging the results as WebDataset
+shards. This utility scans a directory of input images, extracts fixed-size
+patches, filters out empty or near-empty regions based on ink density and
+edge content, and writes the retained patches to a sharded dataset structure
+for downstream training or self-supervised learning.
+
+Typical use:
+    - generate dataset shards from large page images
+    - filter out background-heavy or low-detail patches
+    - prepare data for distributed or batched training pipelines
+
+This script is a data-preprocessing utility rather than a core model training
+or evaluation component.
+"""
+
 import os
 from PIL import Image
 import numpy as np

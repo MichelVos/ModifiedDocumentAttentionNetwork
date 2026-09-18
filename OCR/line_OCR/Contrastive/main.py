@@ -1,3 +1,24 @@
+"""
+main.py
+
+Train a SimCLR-style self-supervised document encoder on handwritten document
+images using a contrastive learning objective. This utility builds a training
+pipeline for the DAN encoder, applies two stochastic augmentations to each input,
+computes projected representations with a lightweight projector head, and
+optimizes the normalized temperature-scaled cross-entropy loss. The script also
+includes data loading, masking, checkpointing, and TensorBoard logging utilities
+for monitoring training progress and representation quality.
+
+Typical use:
+    - train a self-supervised encoder on document images
+    - compare multiple augmentation strategies or seeds
+    - monitor contrastive learning dynamics over epochs
+    - save checkpoints for downstream evaluation and fine-tuning
+
+This script is a training utility for self-supervised representation learning
+rather than a core model component.
+"""
+
 import os
 import sys
 DOSSIER_COURRANT = os.path.dirname(os.path.abspath(__file__))

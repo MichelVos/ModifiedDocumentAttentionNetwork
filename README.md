@@ -6,6 +6,14 @@ This version has been adapted as part of my thesis work and updated to operate o
 
 A central contribution of the thesis is the integration of self-supervised learning (SSL) into the DAN framework. Specifically, this work investigates the combination of contrastive learning through SimCLR and masked image modeling (MIM), implemented within a distributed Spark-based training pipeline. These SSL objectives are designed to learn robust visual representations from unlabeled handwritten document data, improving downstream recognition performance and generalization in settings with limited annotation. The resulting approach bridges representation learning and document recognition, enabling the network to exploit large-scale unlabeled image collections more effectively than purely supervised training alone.
 
+
+## Utility Programs and Supporting Tools
+
+The `utils/` directory contains a collection of small auxiliary programs used to support the main DAN pipeline. These scripts are not part of the core model architecture, but they are essential for dataset preparation, exploratory analysis, and experimental validation. For example, utilities such as `cleanupREAD.py` are used to sanitize and reorganize dataset files and annotations, ensuring that the training data is consistent and correctly formatted. Other scripts in the `TSNE/` and `kNN/` modules are dedicated to embedding analysis: they project learned representations into lower-dimensional spaces and examine nearest-neighbor relationships between samples, providing qualitative insight into the structure of the feature space.
+
+These utility programs are particularly useful for diagnosing dataset issues, evaluating representation quality, and analyzing how the model clusters handwritten text samples under different learning settings. In the context of this thesis, they also support the SSL-based experimental workflow by facilitating data inspection, preprocessing verification, and representation-level analysis of the learned document embeddings.
+
+
 # This is the original README.md
 # DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition
 This repository is a public implementation of the paper: "DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition".

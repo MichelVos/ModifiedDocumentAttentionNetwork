@@ -1,3 +1,22 @@
+"""
+dataset2.py
+
+Define lightweight PyTorch datasets for page-level and line-level handwritten
+document images. This module scans a directory of image files, normalizes them to
+fixed spatial dimensions, and converts them into tensors suitable for model input.
+The dataset wrappers are intended for experimentation and evaluation workflows in
+which document images are processed either as full pages or as cropped line images.
+
+Typical use:
+    - load page images for document-level analysis
+    - load line images for handwriting recognition experiments
+    - normalize image size and format for model training or evaluation
+    - support self-supervised and supervised pipelines
+
+This module is a data-loading utility rather than a core training or model
+component.
+"""
+
 import os
 from PIL import Image
 from torch.utils.data import Dataset

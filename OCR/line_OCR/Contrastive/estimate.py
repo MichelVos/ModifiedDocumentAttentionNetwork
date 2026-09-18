@@ -1,3 +1,24 @@
+"""
+estimate.py
+
+Estimate the activation and parameter memory footprint of a PyTorch model.
+This utility profiles a neural network by registering forward hooks on its
+modules, measuring the size of intermediate activations produced by a dummy
+input, and reporting the approximate memory cost of the forward pass. The script
+also estimates parameter memory, gradient memory, and optimizer-state overhead,
+which is useful for analyzing the memory requirements of training large document
+recognition models.
+
+Typical use:
+    - estimate activation memory for different input resolutions
+    - compare memory usage across model configurations
+    - analyze training feasibility on a given GPU or CPU setup
+    - support model design and deployment decisions
+
+This script is a diagnostic and analysis utility rather than a core training
+or evaluation component.
+"""
+
 import torch
 import torch.nn as nn
 from collections import OrderedDict

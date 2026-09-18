@@ -1,3 +1,22 @@
+"""
+extractAUC.py
+
+Compute the area under the curve (AUC) of a validation metric across multiple
+training runs. This utility loads TensorBoard event files, extracts scalar
+values for a selected metric tag, aligns runs by step count, and computes the
+mean curve over the grouped experiments. The resulting AUC, minimum validation
+value, and corresponding best epoch are printed to the console for comparison
+between runs.
+
+Typical use:
+    - compare the learning curves of several training configurations
+    - summarize performance across different seeds or pretraining strategies
+    - identify the most stable or best-performing run
+
+This script is a diagnostic and analysis utility rather than a training or
+evaluation module.
+"""
+
 import os
 import numpy as np
 from collections import defaultdict

@@ -1,3 +1,23 @@
+"""
+comparefeatures.py
+
+Compare feature representations extracted by two encoder models trained under
+different learning paradigms. This utility loads a self-supervised encoder and
+a supervised encoder, passes a set of sample images through both networks, and
+computes statistics such as feature norms, mean/variance, and cosine similarity.
+The script is intended for qualitative comparison of representation quality and
+embedding geometry between training strategies.
+
+Typical use:
+    - compare SSL and supervised feature extractors
+    - analyze representation scale and distribution
+    - inspect embedding similarity between different models
+    - support experimental interpretation of learned document features
+
+This script is a diagnostic and analysis utility rather than a training or
+evaluation module.
+"""
+
 import os
 import sys
 DOSSIER_COURRANT = os.path.dirname(os.path.abspath(__file__))

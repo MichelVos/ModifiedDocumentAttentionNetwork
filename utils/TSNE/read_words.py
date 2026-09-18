@@ -1,3 +1,21 @@
+"""
+read_words.py
+
+Read and parse a `words.txt` annotation file used for word-level analysis and
+embedding visualization. This utility ignores comment lines and empty entries,
+then extracts the first field as the word identifier and the last field as the
+transcription. The resulting list of `(word_id, transcription)` pairs is returned
+for downstream processing in clustering, nearest-neighbor, or t-SNE experiments.
+
+Typical use:
+    - load word-level annotations for embedding analysis
+    - parse transcription data from textual label files
+    - support representation visualization and evaluation pipelines
+
+This script is a data-loading utility rather than a core training or evaluation
+module.
+"""
+
 def read_words(filepath):
     """
     Read words.txt file, ignoring lines starting with # and extracting

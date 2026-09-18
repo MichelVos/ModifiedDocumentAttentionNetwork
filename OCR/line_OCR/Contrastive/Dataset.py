@@ -1,3 +1,24 @@
+"""
+Dataset.py
+
+Define the document dataset and augmentation pipeline used for training and
+self-supervised learning experiments. This module provides a dataset wrapper for
+document images, including image loading, preprocessing, padding, normalization,
+and augmentation strategies designed for handwritten document recognition.
+It supports both standard supervised training and multi-view contrastive
+training by generating paired augmented views from the same input image.
+
+Typical use:
+    - load document images and metadata from a dataset directory
+    - normalize image statistics across the dataset
+    - apply preprocessing such as resizing, grayscale conversion, and padding
+    - generate multiple augmented views for contrastive learning
+    - support batch generation for training and evaluation
+
+This module is a data-loading and preprocessing utility rather than a core
+model component.
+"""
+
 import math, random
 from typing import List, Dict, Tuple
 import torch
@@ -613,7 +634,8 @@ def aug_lines_weak(x: np.ndarray, tmean, std, i, j) -> np.ndarray:
         c = random.uniform(0.9, 1.1)
         mean = np.mean(x_raw, axis=(0,1), keepdims=True)
         x_raw = (x_raw - mean) * c + mean
-        x_raw = np.clip(x_raw * b, 0.0, 1.0)
+        x_raw = np.clip(x_raw * b, 0, 1)
+        write_image(i, x_raw, "brightness contrast", j)
 
     if random.random() < 0.8:
         x_raw = random_affine(

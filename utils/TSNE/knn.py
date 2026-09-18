@@ -1,3 +1,22 @@
+"""
+knn.py
+
+Evaluate the learned feature space using a k-nearest-neighbor (k-NN) classifier.
+This utility loads a pretrained encoder, extracts embeddings for a set of
+handwritten word images, and uses the feature representations to classify query
+samples based on their nearest neighbors in latent space. The script reports
+classification accuracy across different values of k, providing a lightweight
+measure of the quality and separability of the learned embedding space.
+
+Typical use:
+    - evaluate representation quality without retraining a classifier
+    - compare embeddings from different encoder checkpoints
+    - analyze feature clustering and class separation
+    - support qualitative and quantitative interpretation of self-supervised learning
+
+This script is a diagnostic and analysis utility rather than a core training
+or evaluation module.
+"""
 
 import os
 import sys

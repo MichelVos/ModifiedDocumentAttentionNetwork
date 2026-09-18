@@ -1,3 +1,24 @@
+"""
+saliency.py
+
+Generate a Grad-CAM saliency map for a trained FCN encoder.
+This utility loads a checkpoint of the document encoder, attaches a Grad-CAM
+hook to a convolutional layer, runs inference on an input image, and produces
+a heatmap highlighting the regions that most influence the model's internal
+representation. The resulting activation map is saved as an image for visual
+inspection and qualitative analysis of the encoder's attention behavior.
+
+Typical use:
+    - load a pretrained encoder
+    - select a target convolutional layer
+    - pass an image through the model
+    - compute Grad-CAM activation map
+    - save the heatmap for visualization
+
+This script is intended for analysis/debugging rather than model training or
+inference in the production pipeline.
+"""
+
 import os
 import sys
 DOSSIER_COURRANT = os.path.dirname(os.path.abspath(__file__))

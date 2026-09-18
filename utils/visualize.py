@@ -1,3 +1,23 @@
+"""
+visualize.py
+
+Visualize and compare convolutional filters from two encoder checkpoints trained
+under different learning settings. This utility loads the parameters of a
+supervised model and a contrastive model, extracts the first convolutional layer
+weights, and reports summary statistics such as mean absolute value, L2 norm, and
+maximum absolute activation. The script is intended for qualitative comparison of
+feature extraction behavior and initialization sensitivity between training
+strategies.
+
+Typical use:
+    - compare filter statistics across training regimes
+    - inspect the effect of self-supervised pretraining on early-layer filters
+    - support model analysis and experimental interpretation
+
+This script is a diagnostic and visualization utility rather than a core
+training or evaluation component.
+"""
+
 import torch
 import matplotlib
 import matplotlib.pyplot as plt
