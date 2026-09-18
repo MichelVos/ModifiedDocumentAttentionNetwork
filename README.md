@@ -1,8 +1,12 @@
-# At the moment, this is still a placeholder with the original code. We will add the modified code soon. 
+# DAN: A Segmentation-Free Document Attention Network for Handwritten Document Recognition
 
+This repository provides a public PyTorch implementation of the paper "DAN: A Segmentation-Free Document Attention Network for Handwritten Document Recognition." The work addresses handwritten document recognition in an end-to-end manner, without explicit text segmentation, by leveraging a segmentation-free attention-based architecture. The model is designed to jointly capture handwritten text and page-level structure while remaining robust to variations in slant, alignment, and document layout.
 
+This version has been adapted as part of my thesis work and updated to operate on real text images, with an emphasis on realistic document recognition scenarios rather than synthetic-only settings. The implementation preserves the original methodological foundations of the DAN while incorporating the necessary changes for experimentation on authentic document data.
 
+A central contribution of the thesis is the integration of self-supervised learning (SSL) into the DAN framework. Specifically, this work investigates the combination of contrastive learning through SimCLR and masked image modeling (MIM), implemented within a distributed Spark-based training pipeline. These SSL objectives are designed to learn robust visual representations from unlabeled handwritten document data, improving downstream recognition performance and generalization in settings with limited annotation. The resulting approach bridges representation learning and document recognition, enabling the network to exploit large-scale unlabeled image collections more effectively than purely supervised training alone.
 
+# This is the original README.md
 # DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition
 This repository is a public implementation of the paper: "DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition".
 
