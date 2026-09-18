@@ -40,7 +40,7 @@ ROOT_FOLDER = dirname(dirname(dirname(DOSSIER_COURRANT)))
 sys.path.append(ROOT_FOLDER)
 from OCR.line_OCR.ctc.trainer_line_ctc import TrainerLineCTC
 from OCR.line_OCR.ctc.models_line_ctc import Decoder, CTCtopR, DecoderRowWise, Decoder_BiLSTM, Decoder_Transformer
-from basic.models import FCN_Encoder, FCN_Encoder_Small, FCN_Encoder_Tiny, SeqCLREncoder, SeqCLREncoder2, ResNetEncoder, ResNet18CTC
+from basic.models import FCN_Encoder
 from torch.optim import Adam
 from basic.transforms import line_aug_config
 from basic.scheduler import exponential_dropout_scheduler, exponential_scheduler

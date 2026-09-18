@@ -49,6 +49,175 @@ import random
 import torchvision.models as models
 import torch.nn as nn
 
+class ResNet18CTC(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+
+        out_channels = params["hidden_size"]
+        vocab_size = params["vocab_size"]
+
+        resnet = models.resnet18(weights=None)
+
+        # --- standard ResNet18 backbone (unmodified) ---
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            resnet.maxpool,
+            resnet.layer1,
+            resnet.layer2,
+            resnet.layer3,
+            resnet.layer4,
+        )
+
+        # project channels
+        self.proj = nn.Conv2d(512, out_channels, kernel_size=1)
+
+        # collapse height → sequence
+        self.pool = nn.AdaptiveAvgPool2d((1, None))
+
+        # CTC classifier
+        self.classifier = nn.Conv1d(out_channels, vocab_size + 1, kernel_size=1)
+
+    def forward(self, x):
+        x = self.features(x)        # [B, 512, H, W]
+        x = self.proj(x)            # [B, C, H, W]
+        #x = self.pool(x)            # [B, C, 1, W]
+        #x = x.squeeze(2)            # [B, C, W]
+        #x = self.classifier(x)      # [B, vocab+1, W]
+        #x = F.log_softmax(x, dim=1)
+        return x
+
+class ResNet18CTC_old(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+        out_channels = params["hidden_size"] 
+        resnet = models.resnet18(pretrained=False)
+        
+        # --- modify for line images ---
+        resnet.conv1.stride = (1, 1)   # keep resolution
+        # remove maxpool to avoid too much downsampling
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            # no maxpool
+            resnet.layer1,  # 64
+            resnet.layer2,  # 128
+            resnet.layer3,  # 256
+            resnet.layer4,  # 512
+        )
+        
+        # collapse height → sequence
+        self.proj = nn.Conv2d(512, out_channels, kernel_size=1)
+
+        
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.proj(x)
+        return x
+
+class ResNetEncoder(nn.Module):
+    def __init__(self, params):
+        super().__init__()
+
+        out_channels=params.get("hidden_size", 256)
+
+        resnet = models.resnet50(pretrained=False)
+
+        resnet.conv1.stride = (1, 1)
+
+        self.features = nn.Sequential(
+            resnet.conv1,
+            resnet.bn1,
+            resnet.relu,
+            # no maxpool
+            resnet.layer1,
+            resnet.layer2,
+            resnet.layer3,
+            resnet.layer4,
+        )
+
+        self.proj = nn.Conv2d(2048, out_channels, kernel_size=1)
+
+    def forward(self, x):
+        x = self.features(x)
+        x = self.proj(x)
+        return x
+
+class SeqCLREncoder2(Module):
+    def __init__(self, params):
+        in_channels = params["input_channels"]
+        hidden = params["hidden_size"]
+        super().__init__()
+        self.encoder = Sequential(
+            # Stage 1
+            Conv2d(in_channels, 32, 3, stride=2, padding=1),  # H/2 W/2
+            InstanceNorm2d(32, affine=True),
+            ReLU(),
+
+            # Stage 2
+            Conv2d(32, 64, 3, stride=2, padding=1),           # H/4 W/4
+            InstanceNorm2d(64, affine=True),
+            ReLU(),
+
+            # Stage 3 (keep width!)
+            Conv2d(64, 128, 3, stride=(2,1), padding=1),      # H/8 W/4
+            InstanceNorm2d(128, affine=True),
+            ReLU(),
+
+            # Deeper context
+            Conv2d(128, hidden, 3, padding=1),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+
+            Conv2d(hidden, hidden, (3,5), padding=(1,2)),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+
+            Conv2d(hidden, hidden, (3,5), padding=(1,2)),
+            InstanceNorm2d(hidden, affine=True),
+            ReLU(),
+        )
+    def forward(self, x):
+        # x: (B, C, H, W)
+        x = self.encoder(x)  # (B, C, H', W')
+        return x
+
+
+class SeqCLREncoder(Module):
+    def __init__(self, params):
+        in_channels = params["input_channels"]
+        hidden = params["hidden_size"]
+        super().__init__()
+        self.encoder = Sequential(
+            # (H, W)
+            Conv2d(in_channels, 32, 3, padding=1),
+            BatchNorm2d(32),
+            ReLU(),
+            MaxPool2d((2, 2)),   # H/2, W/2
+
+            Conv2d(32, 64, 3, padding=1),
+            BatchNorm2d(64),
+            ReLU(),
+            MaxPool2d((2, 2)),   # H/4, W/4
+
+            Conv2d(64, 128, 3, padding=1),
+            BatchNorm2d(128),
+            ReLU(),
+            MaxPool2d((2, 1)),   # H/8, W/4  (important: keep width!)
+
+            Conv2d(128, hidden, 3, padding=1),
+            BatchNorm2d(hidden),
+            ReLU(),
+        )
+    def forward(self, x):
+        # x: (B, C, H, W)
+        x = self.encoder(x)  # (B, C, H', W')
+        return x
+
+
 class DepthSepConv2D(Module):
     def __init__(self, in_channels, out_channels, kernel_size, activation=None, padding=True, stride=(1, 1), dilation=(1, 1)):
         super(DepthSepConv2D, self).__init__()

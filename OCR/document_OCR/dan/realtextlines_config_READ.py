@@ -119,7 +119,7 @@ params = {
             }
         },
         "line_dataset_params": {
-           f"path": "{Path.home()}/dev/python/formatted/READ_2016_non_syn_line",
+           f"path": f"{Path.home()}/dev/python/formatted/READ_2016_non_syn_line",
         },
     },
 
