@@ -14,7 +14,7 @@ The `utils/` directory contains a collection of small auxiliary programs used to
 These utility programs are particularly useful for diagnosing dataset issues, evaluating representation quality, and analyzing how the model clusters handwritten text samples under different learning settings. In the context of this thesis, they also support the SSL-based experimental workflow by facilitating data inspection, preprocessing verification, and representation-level analysis of the learned document embeddings.
 
 
-# This is the original README.md
+
 # DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition
 This repository is a public implementation of the paper: "DAN: a Segmentation-free Document Attention Network for Handwritten Document Recognition".
 
